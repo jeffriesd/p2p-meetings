@@ -5,7 +5,7 @@ from socket import *
 # this application uses port 40 
 # since port 40 is unassigned according IANA:
 # https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
-P2P_PORT = 40
+P2P_PORT = 8040
 
 
 # maximum outgoing connections 

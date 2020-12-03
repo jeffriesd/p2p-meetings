@@ -1,5 +1,6 @@
 from socket import *
 import threading
+from constants import * 
 
 # Author: Daniel Jeffries
 #
@@ -12,18 +13,6 @@ import threading
 # In this implementation the host can send messages 
 # directly to a particular client, broadcast messages to 
 # every client, and receive messages ("questions") from individuals. 
-
-
-# this application uses port 40 
-# since port 40 is unassigned according IANA:
-# https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
-P2P_PORT = 40
-
-
-# maximum number of queued connection 
-# requests for a host 
-MAX_QUEUED_REQUESTS = 5
-
 
 # Maintain a list of 'bad words' 
 # that we will use to filter 
@@ -170,7 +159,7 @@ class HostNode:
             # this causes the thread to stop looping
             self.question_threads_keep_alive[addr] = False
 
-            # TODO debug join
+            # TODO debug thread join
             #
             # if self.question_threads[addr].is_alive():
             #     threading.Thread.join(self.question_threads[addr])

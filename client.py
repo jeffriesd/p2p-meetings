@@ -45,9 +45,6 @@ class Client:
     def __init__(self):
         # connect to central server
         self.connect_with_server()
-
-        # server_response_thread is a ListenThread
-        self.server_response_thread.start()
     
     def create(self):
         send_socket_message(self.client_socket, CreateStarRequest())
@@ -81,6 +78,7 @@ class Client:
                             self.handle_response, \
                             lambda: print("Disconnected from central server."))
 
+        self.server_response_thread.start()
 
     def disconnect_from_server(self):
         """

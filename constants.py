@@ -29,14 +29,3 @@ def get_meeting_port(meetingID):
     """
     return P2P_PORT_OFFSET + meetingID
 
-
-def convert_ip(addr):
-    """
-    Translate "127.0.0.1" or "localhost" 
-    into public IP address 
-    """
-    if addr == SERVER_IP:
-        return "localhost"
-    # if addr in ["127.0.0.1", "localhost"]:
-    #     return SERVER_IP
-    return addr

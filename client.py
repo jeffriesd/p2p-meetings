@@ -3,6 +3,7 @@ from server_requests import *
 from constants import * 
 import threading
 import json
+from star_client import *
 
 ######################################################
 ######################################################
@@ -49,13 +50,13 @@ class Client:
         self.server_response_thread.start()
     
     def create(self):
-        safe_send(self.client_socket, CreateStarRequest().encode())
+        send_socket_message(self.client_socket, CreateStarRequest())
 
     def join(self, n):
-        safe_send(self.client_socket, JoinStarRequest(n).encode())
+        send_socket_message(self.client_socket, JoinStarRequest(n))
 
     def list(self):
-        safe_send(self.client_socket, ListRequest().encode())
+        send_socket_message(self.client_socket, ListRequest())
 
     def connect_with_server(self):
         """
@@ -78,7 +79,7 @@ class Client:
             ListenThread(ServerResponse, \
                             self.client_socket,  \
                             self.handle_response, \
-                            lambda: print("Disconnected from server"))
+                            lambda: print("Disconnected from central server."))
 
 
     def disconnect_from_server(self):
@@ -97,17 +98,39 @@ class Client:
         """
         if response_obj.type == JOIN:
             if response_obj.success:
-                print("Client action: join with ", response_obj.data)
-                # TODO connect with this list of hosts 
+                
+                if response_obj.data.meetingType == STAR:
+                    print("Client action: join with ", response_obj.data.host)
+                    host_addr, host_port = response_obj.data.host
+
+                    # TODO wrap this with try/except (meeting may have closed)
+                    #
+                    # aud = AudienceNode("new user", host_addr)
+                    self.aud = AudienceNode("new_user123", host_addr, host_port)
+
+                elif response_obj.data.meetingType == MESH:
+                    pass
+
+                # disconnect from central server
+                self.disconnect_from_server()
 
             else:
                 print("Join request failed: ", response_obj.message)
 
         if response_obj.type == CREATE:
             if response_obj.success:
-                print("Client action: Create new room with meeting ID", response_obj.data)
+                print("Client action: Create new room with meeting ID", response_obj.data.meetingID)
                 # TODO establish new room 
 
+                # what kind of room to create:
+
+                if response_obj.data.meetingType == STAR:
+                    room_name = "meeting-%s" % response_obj.data.meetingID
+                    # host = HostNode(room_name)
+                    self.host = HostNode(room_name, get_meeting_port(response_obj.data.meetingID))
+
+                if response_obj.data.meetingType == MESH:
+                    pass
 
                 self.disconnect_from_server()
             else:

@@ -3,23 +3,20 @@ from socket import *
 import threading 
 from server_requests import * 
 from constants import * 
+from socket_util import * 
 
-class MeetingEntry: 
-    pass
 
-class LectureMeetingEntry:
-    """ 
-    Maintain address of host, 
-    number of attendees, ...
-    """ 
-    pass
+class StarMeetingEntry:
+    def __init__(self, addr_port):
+        self.host_addr_port = addr_port
+        self.host_addr, self.host_port = addr_port 
 
 class MeshMeetingEntry:
-    """ 
-    Maintain addresses of all 
-    attendees, number of attendees, ...
-    """ 
-    pass
+    def __init__(self, addr_port):
+        host_addr, host_port = addr_port 
+
+        self.host_addrs = [ host_addr ]
+        self.host_ports = [ host_port ]
 
 
 
@@ -81,112 +78,85 @@ class Server:
         server_socket = socket(AF_INET, SOCK_STREAM)
         server_socket.bind(('', SERVER_PORT))
         server_socket.listen(MAX_QUEUED_REQUESTS)
-
         server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 
+
         while True:
-            connection_socket, addr = server_socket.accept()
-            print("Got a new connection")
+            connection_socket, addr_port = server_socket.accept()
+            print("Central server: got a new connection.")
 
             connection_msg = "You are connected to the central server."
             connection_socket.send(connection_msg.encode())
-            
-            # # process requests for this client before accepting
-            # # more connections
-            # self.wait_for_requests(connection_socket, addr)
+
 
             # listen for requests from this client in a separate thread
             # so other clients can connect simultaneously
             request_thread = \
-                ListenThread(MessageRequest,   \   
-                             connection_socket, \ 
-                             lambda req: self.handle_request(req, connection_socket, addr) \ 
+                ListenThread(MeetingRequest,   \
+                             connection_socket, \
+                             lambda req: self.handle_request(req, connection_socket, addr_port), \
                              lambda: print("Client closed connection."), \
-                             keep_alive_sec = 5 * 60 \ # keep connection alive 5 minutes 
+                             keep_alive_sec = 5 * 60 \
                              )
 
             request_thread.start()
 
-    # def wait_for_requests(self, conn_socket, addr):
-    #     """ 
-    #     Wait for incoming requests from a 
-    #     specific TCP connection
-    #     """
-    #     while True:
-    #         request_bytes = bytearray()
-
-    #         try:
-    #             print("waiting to receive...")
-    #             request_bytes = conn_socket.recv(1024)
-    #             print("... received")
-    #         except:
-    #             print("TCP connection for central server request closed.")
-
-    #             # stop listening for requests from this socket
-    #             return
-
-    #         # TODO add error handling in case connection
-    #         # is closed by requesting client
-    #         if not request_bytes:
-    #             return
-
-    #         # try to parse request as dictionary
-    #         request_dict = {}
-    #         try:
-    #             print("request decoded: ", request_bytes.decode())
-    #             request_str = request_bytes.decode()
-    #             request_str = request_str.replace(";","")
-    #             print("Rs = ", request_str)
-    #             request_dict = json.loads(request_str)
-    #         except:
-    #             print("Server failed to parse request")
-    #             continue
-
-    #         mtng_request = MeetingRequest(request_dict)
-
-    #         if mtng_request.is_valid():
-    #             self.handle_request(mtng_request, conn_socket, addr)
-    #         else:
-    #             print("Invalid request")
 
     def send_response(self, response_obj, conn_socket):
         """ 
         response_obj - ServerResponse object
         """
-        # TODO error handling in case connection closed 
-
         if response_obj.is_valid():
             safe_send(conn_socket, response_obj.encode())
         else:
-            print("!!!!! INVALID  response")
+            print("INVALID RESOPNSE: ", response_obj)
 
-    def handle_request(self, mtng_request, conn_socket, addr):
+    def handle_request(self, mtng_request, conn_socket, addr_port):
         """ 
         mtng_request - MeetingRequest object
-        """
-        # TODO error handling in case connection closed 
 
+        addr_port - ip address and port for socket connection from client to server... 
+        """
         if mtng_request.type == LIST:
             # create new response with list of meeting ids
             response = ListResponse(list(self.meetings.keys()))
 
         elif mtng_request.type == JOIN:
-            if mtng_request.meetingID in self.meetings:
+            if mtng_request.data.meetingID in self.meetings:
                 # TODO if it exists, make sure it is accepting 
-                # new members (it may be full) 
+                # new members (it may be full) and is of the right type
                 #
-                response = JoinSuccess(self.meetings[mtng_request.meetingID])
+                # (implement StarMeetingEntry etc.)
+                if mtng_request.data.meetingType == STAR:
+                    meeting_entry = self.meetings[mtng_request.data.meetingID]
+                    if isinstance(meeting_entry, StarMeetingEntry):
+                        response = JoinStarSuccess(meeting_entry.host_addr_port)
+                    else:
+                        response = JoinFailure("Meeting '%s' is not a star-meeting" % mtng_request.data.meetingID)
+                if mtng_request.data.meetingType == MESH:
+                    pass
+                    # response = JoinMeshSuccess(self.meetings[mtng_request.data.meetingID])
             else:
-                response = JoinFailure("Meeting ID '%s' not found." % mtng_request.meetingID)
+                response = JoinFailure("Meeting ID '%s' not found." % mtng_request.data.meetingID)
 
         elif mtng_request.type == CREATE:
+            # TODO maybe users should only be able to host one meeting ? 
+
             meetingID = self.new_meetingID()
 
             # register new meeting with new ID
-            self.meetings[meetingID] = [ addr ]
+            # self.meetings[meetingID] = [ addr_port ]
 
-            # response to Create should be the meetingID
-            response = CreateSuccess(meetingID)
+            if mtng_request.data.meetingType == STAR:
+
+                # TODO Select port for p2p connections for this new meeting
+                p2p_port = get_meeting_port(meetingID)
+                response = CreateStarSuccess(meetingID)
+                self.meetings[meetingID] = StarMeetingEntry((addr_port[0], p2p_port))
+
+            if mtng_request.data.meetingType == MESH:
+                response = CreateMeshSuccess(meetingID)
+                # self.meetings[meetingID] = MeshMeetingEntry(addr_port)
 
         # send response to requesting client 
         self.send_response(response, conn_socket)

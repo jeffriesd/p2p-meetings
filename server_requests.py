@@ -9,7 +9,7 @@ from constants import *
 ##########################################################
 
 
-REQUEST_FIELDS = [ "type", "meetingType", "meetingID" ]
+REQUEST_FIELDS = [ "type", "data", "message" ]
 LIST = "list"
 JOIN = "join"
 CREATE = "create"
@@ -18,9 +18,16 @@ STAR = "star"
 MESH = "mesh"
 MEETING_TYPES = [STAR, MESH]
 
-class MeetingRequest: 
+
+# valid fields of application messages 
+DATA_FIELDS = [
+    "meetingType", "meetingID", 
+    "hosts", "username", "host", 
+]
+
+class SocketMessage:
     """
-    Requests handled by this server are 
+    Messages in this application are 
     represented as dictionaries. 
     This class serves as a "wrapper"
     for the requests, so a dictionary 
@@ -33,31 +40,69 @@ class MeetingRequest:
     r.b = 2
     """
 
-    def __init__(self, request_dict):
-        """
-        Construct MeetingRequest object from dictionary.
-        """
-        for key in request_dict:
+    def __init__(self, msg_dict, msg_fields):
+        self.msg_fields = msg_fields 
+        for key in msg_dict:
             # ignore unexpected fields 
-            if key in REQUEST_FIELDS:
-                self.__setattr__(key, request_dict[key])
+            if key in msg_fields:
+                attr = msg_dict[key]
+                if type(attr) is dict:
+                    # recursively lift keys of dictionary to be attributes of 
+                    # the object itself 
+                    attr = SocketMessage(attr, DATA_FIELDS)
+
+                # assign dictionary key/value to 
+                # be attribute of this SocketMessage object
+                setattr(self, key, attr)
+            else:
+                print("Unexpected field for SocketMessage: ", key)
 
     def _get_dict(self):
+        """
+        Convert SocketMessage back to dictionary
+        for serialization purposes. 
+        """
         d = {}
-        for key in REQUEST_FIELDS:
+        for key in self.msg_fields:
             if hasattr(self, key):
-                d[key] = self.__getattribute__(key)
+                attr = self.__getattribute__(key)
+                
+                # convert nested SocketMessage objects 
+                # back to dictionaries
+                if isinstance(attr, SocketMessage):
+                    attr = attr._get_dict()
+
+                d[key] = attr
         return d
 
     def encode(self):
         """
-        Turn request into dictionary, 
+        Turn message into dictionary, 
         then string, then bytes 
         for sending over a socket. 
         """
         request_str = json.dumps(self._get_dict()) + MSG_DELIM
         return request_str.encode()
 
+    def is_valid(self):
+        """
+        Default method performs no error-checking
+        on the contents of a message. 
+        """
+        return True 
+
+
+class MeetingRequest(SocketMessage): 
+    """
+    Requests from clients to central server. 
+    May take the form of JOIN, CREATE, or LIST.
+    """
+
+    def __init__(self, request_dict={}):
+        """
+        Construct MeetingRequest object from dictionary.
+        """
+        super().__init__(request_dict, REQUEST_FIELDS)
 
     def is_valid(self):
         """
@@ -77,52 +122,50 @@ class MeetingRequest:
         - type = "create"
           meetingType = {"mesh", "star"}
         """
-        
         # request must be either "list", "join" or "create"
         if self.type == LIST:
             return True
 
         if self.type == JOIN:
-            return type(self.meetingID) is int \
-                and self.meetingType in MEETING_TYPES
+            return type(self.data.meetingID) is int \
+                and self.data.meetingType in MEETING_TYPES
 
         if self.type == CREATE:
-            return self.meetingType in MEETING_TYPES
+            return self.data.meetingType in MEETING_TYPES
 
         return False
 
 
 class ListRequest(MeetingRequest):
     def __init__(self):
+        super().__init__()
         self.type = LIST
 
 class JoinStarRequest(MeetingRequest):
     def __init__(self, meeting_id):
+        super().__init__()
         self.type = JOIN
-        self.meetingType = STAR
-        self.meetingID = meeting_id
+        self.data = { "meetingType" : STAR ,
+                      "meetingID" : meeting_id }
 
 class JoinMeshRequest(MeetingRequest):
     def __init__(self, meeting_id):
+        super().__init__()
         self.type = JOIN
-        self.meetingType = MESH
-        self.meetingID = meeting_id
+        self.data = { "meetingType" : MESH , 
+                      "meetingID" : meeting_id }
 
 class CreateMeshRequest(MeetingRequest):
     def __init__(self):
+        super().__init__()
         self.type = CREATE
-        self.meetingType = MESH
+        self.data = { "meetingType" : MESH } 
 
 class CreateStarRequest(MeetingRequest):
     def __init__(self):
+        super().__init__()
         self.type = CREATE
-        self.meetingType = STAR
-
-
-#######################################################
-#######################################################
-#######################################################
-
+        self.data = { "meetingType" : STAR } 
 
 
 ##########################################################
@@ -133,7 +176,7 @@ class CreateStarRequest(MeetingRequest):
 
 RESPONSE_FIELDS = [ "type", "success", "message", "data" ]
 
-class ServerResponse:
+class ServerResponse(SocketMessage):
     """
     Server may reply to requests with different data
     and messages. This class encapsulates the structure
@@ -150,27 +193,11 @@ class ServerResponse:
       - why would this happen? 
     """
     
-    def __init__(self, response_dict):
-        for key in response_dict:
-            # ignore unexpected fields 
-            if key in RESPONSE_FIELDS:
-                self.__setattr__(key, response_dict[key])
-
-    def _get_dict(self):
-        d = {}
-        for key in RESPONSE_FIELDS:
-            if hasattr(self, key):
-                d[key] = self.__getattribute__(key)
-        return d
-
-    def encode(self):
+    def __init__(self, request_dict={}):
         """
-        Turn response into dictionary, 
-        then string, then bytes 
-        for sending over a socket. 
+        Construct ServerResponse object from dictionary.
         """
-        response_str = json.dumps(self._get_dict()) + MSG_DELIM
-        return response_str.encode()
+        super().__init__(request_dict, RESPONSE_FIELDS)
 
     def is_valid(self):
         """
@@ -183,19 +210,20 @@ class ServerResponse:
             return False
 
         if self.type == LIST:
-            # List request should always
-            # succeed and return a list
-            return self.success and type(self.data) is list
+            # List response should always
+            # return a list
+            # return type(self.data) is list
+            return True
 
         if self.type == JOIN:
-            if self.success:
-                return type(self.data) is list
+            # if self.success:
+                # return type(self.data) is list
             return True
 
         if self.type == CREATE:
             # CREATE data is meeting ID (integer)
-            if self.success:
-                return type(self.data) is int
+            # if self.success:
+                # return type(self.data) is int
             return True
 
         return False
@@ -203,29 +231,50 @@ class ServerResponse:
 
 class ListResponse(ServerResponse):
     def __init__(self, meeting_id_list):
+        super().__init__()
         self.message = "\nMeetings found: %s\n" % len(meeting_id_list)
         self.type = LIST
         self.success = True
         self.data = meeting_id_list
 
-class JoinSuccess(ServerResponse):
-    def __init__(self, addr_port_pairs):
+class JoinStarSuccess(ServerResponse):
+    def __init__(self, host_addr_port):
+        super().__init__()
         self.message = "Join request successful! Preparing to join..."
-        self.data = addr_port_pairs
+        self.data = { "host" : host_addr_port, "meetingType": STAR }
         self.type = JOIN
         self.success = True 
 
+class JoinMeshSuccess(ServerResponse):
+    def __init__(self, addr_port_pairs):
+        super().__init__()
+        self.message = "Join request successful! Preparing to join..."
+        self.data = { "hosts" : addr_port_pairs , "meetingType": MESH }
+        self.type = JOIN
+        self.success = True 
+
+
 class JoinFailure(ServerResponse):
     def __init__(self, error_msg):
+        super().__init__()
         self.message = "Join failed with error: '%s'" % error_msg
         self.type = JOIN
         self.success = False
         self.data = None
 
-class CreateSuccess(ServerResponse):
+class CreateStarSuccess(ServerResponse):
     def __init__(self, meetingID):
+        super().__init__()
         self.message = "Create request successful! Creating new meeting..."
-        self.data = meetingID
+        self.data = { "meetingID" : meetingID , "meetingType" : STAR } 
+        self.type = CREATE
+        self.success = True 
+
+class CreateMeshSuccess(ServerResponse):
+    def __init__(self, meetingID):
+        super().__init__()
+        self.message = "Create request successful! Creating new meeting..."
+        self.data = { "meetingID" : meetingID , "meetingType" : MESH } 
         self.type = CREATE
         self.success = True 
 

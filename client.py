@@ -63,14 +63,16 @@ class Client:
         self.client_socket = socket(AF_INET, SOCK_STREAM)
 
         try:
-            self.client_socket.connect((SERVER_IP, SERVER_PORT))
+            # self.client_socket.connect((SERVER_IP, SERVER_PORT))
+            self.client_socket.connect((convert_ip(SERVER_IP), SERVER_PORT))
         except Exception as e:
-            try: 
-                # workaround for connectin from local machine 
-                self.client_socket.connect(("localhost", SERVER_PORT))
-            except Exception as e:
-                print("Failed to connect with central server:", e)
-                return
+            # try: 
+            #     # workaround for connectin from local machine 
+            #     self.client_socket.connect(("localhost", SERVER_PORT))
+            # except Exception as e:
+            #
+            print("Failed to connect with central server:", e)
+            return
 
         print("Connected successfully with central server.")
 

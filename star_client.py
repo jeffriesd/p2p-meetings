@@ -333,7 +333,8 @@ class AudienceNode:
         self.client_socket = socket(AF_INET, SOCK_STREAM)
 
         try:
-            self.client_socket.connect((host_addr, host_port))
+            # self.client_socket.connect((host_addr, host_port))
+            self.client_socket.connect((convert_ip(host_addr), host_port))
             print("Connected successfully")
         except:
             self.client_socket.close()

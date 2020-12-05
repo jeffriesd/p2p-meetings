@@ -76,14 +76,14 @@ class Server:
         """
 
         server_socket = socket(AF_INET, SOCK_STREAM)
+        server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # 
         server_socket.bind(('', SERVER_PORT))
         server_socket.listen(MAX_QUEUED_REQUESTS)
-        server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 
 
         while True:
             connection_socket, addr_port = server_socket.accept()
-            print("Central server: got a new connection.")
+            print("Central server: got a new connection from ", addr_port)
 
             connection_msg = "You are connected to the central server."
             connection_socket.send(connection_msg.encode())

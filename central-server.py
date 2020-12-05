@@ -78,7 +78,8 @@ class Server:
         server_socket = socket(AF_INET, SOCK_STREAM)
         server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # 
         server_socket.bind(('', SERVER_PORT))
-        server_socket.listen(MAX_QUEUED_REQUESTS)
+        # server_socket.listen(MAX_QUEUED_REQUESTS)
+        server_socket.listen()
 
 
         while True:
@@ -91,16 +92,21 @@ class Server:
 
             # listen for requests from this client in a separate thread
             # so other clients can connect simultaneously
-            request_thread = \
-                ListenThread(MeetingRequest,   \
+            request_thread = self.make_request_thread(connection_socket, addr_port)
+            request_thread.start()
+
+    def make_request_thread(self, connection_socket, addr_port):
+        """
+        Can't inline this above, or else binding issues arise
+        since connection_socket and addr_port get reassigned every
+        iteration of the while loop. 
+        """
+        return ListenThread(MeetingRequest,   \
                              connection_socket, \
                              lambda req: self.handle_request(req, connection_socket, addr_port), \
                              lambda: print("Client closed connection."), \
                              keep_alive_sec = 5 * 60 \
                              )
-
-            request_thread.start()
-
 
     def send_response(self, response_obj, conn_socket):
         """ 
@@ -117,6 +123,9 @@ class Server:
 
         addr_port - ip address and port for socket connection from client to server... 
         """
+        
+        # print("SERVER: handling request from :", addr_port)
+
         if mtng_request.type == LIST:
             # create new response with list of meeting ids
             response = ListResponse(list(self.meetings.keys()))

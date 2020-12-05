@@ -185,15 +185,17 @@ class HostNode:
             self.connections[addr_port] = connection_socket
             
             # start thread to listen for questions from this client
-            question_thread = ListenThread(P2PMessage, connection_socket, \
+            question_thread = self.make_listen_thread(connection_socket, addr_port)
+            self.question_threads[addr_port] = question_thread
+            question_thread.start()
+
+    def make_listen_thread(self, connection_socket, addr_port):
+        return ListenThread(P2PMessage, connection_socket, \
                     # function to perform on incoming messages
                     lambda pm: self.handle_p2p_message(addr_port, pm), \
                     # cleanup to perform when client closes connection
                     lambda: self.remove_user(addr_port))
-
-            self.question_threads[addr_port] = question_thread
-            question_thread.start()
-
+ 
 
     def handle_p2p_message(self, addr_port, message_obj):
         """

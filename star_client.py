@@ -591,7 +591,7 @@ class MeshHostNode(HostNode):
             # register p2p port for this peer
             # so future peers can connect to it
             
-            print("Setting p2p port for = ", p2p_port, "for ", addr_port)
+            print("Setting p2p port for = ", message_obj.data.p2p_port, "for ", addr_port)
 
             self.set_p2p_port(addr_port, message_obj.data.p2p_port)
 

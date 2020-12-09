@@ -248,9 +248,8 @@ class HostNode:
         """
 
         if message_obj.type == P2P_TEXT:
-            # regular text from MeshNode to MeshNode
-            #
-            pass
+            # regular text from AudienceNode to HostNode
+            self.handle_question(addr_port, message_obj.message)
 
         elif message_obj.type == P2P_USERNAME:
             # update username
@@ -403,7 +402,7 @@ class AudienceNode:
 
         try:
             self.client_socket.connect((host_addr, host_port))
-            print("Connected successfully")
+            print("Connected successfully to host.")
         except:
             self.client_socket.close()
             print("Connection with meeting host failed. Host_addr = ", host_addr)

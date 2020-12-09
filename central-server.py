@@ -77,6 +77,9 @@ class Server:
         self._unique_meetingID = 0
         self._unique_meetingID_lock = threading.Lock()
 
+        self._unique_meeting_port = DEFAULT_P2P_PORT
+        self._unique_meeting_port_lock = threading.Lock()
+
         self.connection_thread = threading.Thread(target=self.wait_for_connections)
         self.connection_thread.start()
 
@@ -91,6 +94,18 @@ class Server:
             uid = self._unique_meetingID
             self._unique_meetingID += 1
         return uid
+
+    def new_meeting_port(self):
+        """
+        Assign new meeting port and increment global counter. 
+        Synchronized to avoid multiple threads assigning the 
+        same meeting port. 
+        """
+        port = 0
+        with self._unique_meeting_port_lock:
+            port = self._unique_meeting_port
+            self._unique_meeting_port += 1
+        return port
 
     def wait_for_connections(self):
         """
@@ -194,7 +209,7 @@ class Server:
             # determine port for p2p connections for this new meeting
             # (must be unique to this meeting in case other peers 
             # have the same IP addr)
-            p2p_port = self.get_new_meeting_port(meetingID)
+            p2p_port = self.new_meeting_port(meetingID)
 
             # store address and p2p port so other users can join 
             # this meeting in the future 
@@ -208,21 +223,6 @@ class Server:
 
         # send response to requesting client 
         self.send_response(response, conn_socket)
-
-
-    def get_new_meeting_port(self, meetingID):
-        """ 
-        Return port number that is unique to a
-        particular set of peers. 
-        """
-
-        if meetingID in self.meetings:
-            meeting_entry = self.meetings[meetingID]
-
-            if meeting_entry.meeting_ports:
-                max_port = max(self.meetings[meetingID].meeting_ports)
-                return max_port + 1
-        return DEFAULT_P2P_PORT
 
 
 

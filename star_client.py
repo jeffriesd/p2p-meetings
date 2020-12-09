@@ -353,10 +353,10 @@ class HostNode:
         # stop thread
         self.connection_thread.join()
 
-        for addr_port in self.connections:
+        for addr_port in self.peers:
             self.remove_user(addr_port)
 
-        self.connections = {}
+        self.peers = {}
 
 
     def direct_message(self, addr_port, msg_str):
@@ -367,12 +367,11 @@ class HostNode:
         if addr_port in self.peers:
             p2p_msg = P2PText(msg_str)
             if p2p_msg.is_valid():
-                send_socket_message(self.connections[addr_port], p2p_msg)
+                send_socket_message(self.peers[addr_port].conn_socket, p2p_msg)
             else:
                 print("Invalid argument to P2PText: ", msg_str)
         else:
             print(self.unknown_peer_error(addr_port), "for direct_message")
-
 
     def broadcast_message(self, msg_str):
         """

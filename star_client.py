@@ -138,7 +138,7 @@ class MeshConnect(P2PMessage):
         self.data = { "hosts" : addr_ports }
 
     def is_valid(self):
-        return super().is_valid() \ 
+        return super().is_valid() \
             and (type(self.data.hosts) is list)
 
 ###############################################################

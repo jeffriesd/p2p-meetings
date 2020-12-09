@@ -190,6 +190,13 @@ class HostNode:
             question_thread.start()
 
     def make_listen_thread(self, connection_socket, addr_port):
+        """
+        Need to define this as its own method since the lambdas 
+        used as arguments to ListenThread need to capture some variables (addr_port). 
+
+        The while loop in wait_for_connections makes inlining this 
+        method impossible due to scoping/binding issues. 
+        """
         return ListenThread(P2PMessage, connection_socket, \
                     # function to perform on incoming messages
                     lambda pm: self.handle_p2p_message(addr_port, pm), \
@@ -294,6 +301,7 @@ class HostNode:
         for addr_port in self.connections:
             self.remove_user(addr_port)
 
+        # clear connections dictionary 
         self.connections = {}
 
 
@@ -328,9 +336,12 @@ class AudienceNode:
         Connect to host and save reference to the socket object.
         """
 
-        self.host_addr = host_addr
-        self.host_port = host_port
         # self.host_addr = host_addr
+        # self.host_port = host_port
+        #
+        # dont really need these?
+    
+
         # create new tcp connection with hosting peer
         self.client_socket = socket(AF_INET, SOCK_STREAM)
 

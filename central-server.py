@@ -77,6 +77,7 @@ class Server:
 
         server_socket = socket(AF_INET, SOCK_STREAM)
         server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # 
+        # server_socket.bind(('localhost', SERVER_PORT))
         server_socket.bind(('', SERVER_PORT))
         # server_socket.listen(MAX_QUEUED_REQUESTS)
         server_socket.listen()
@@ -158,14 +159,20 @@ class Server:
 
             if mtng_request.data.meetingType == STAR:
 
-                # TODO Select port for p2p connections for this new meeting
+                # determine port for p2p connections for this new meeting
                 p2p_port = get_meeting_port(meetingID)
+
                 response = CreateStarSuccess(meetingID)
+
+                # store address and p2p port so other users can join 
+                # this meeting in the future 
                 self.meetings[meetingID] = StarMeetingEntry((addr_port[0], p2p_port))
 
             if mtng_request.data.meetingType == MESH:
                 response = CreateMeshSuccess(meetingID)
                 # self.meetings[meetingID] = MeshMeetingEntry(addr_port)
+                #
+                # TODO 
 
         # send response to requesting client 
         self.send_response(response, conn_socket)

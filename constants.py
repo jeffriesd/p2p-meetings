@@ -2,11 +2,10 @@ import json
 import threading
 import time
 
-# my ip addr is 24.216.148.212
-
 # SERVER_IP = "localhost"
-SERVER_IP = "24.216.148.212"
 
+# AWS 
+SERVER_IP = "3.132.213.19"
 
 # this application uses port 40 
 # since port 40 is unassigned according IANA:

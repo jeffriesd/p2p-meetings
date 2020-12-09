@@ -513,7 +513,7 @@ class MeshHostNode(HostNode):
 
         while True:
             connection_socket, addr_port = accept_socket.accept()
-            print("Host: received a new connection request")
+            print("Host: received a new connection request from ", addr_port)
 
             welcome_message = P2PText("You are connected to host %s!" % self.username)
             send_socket_message(connection_socket, welcome_message)
@@ -523,7 +523,7 @@ class MeshHostNode(HostNode):
             # other_peer_addr_ports = []
             # for addr_port in self.peers:
 
-            send_socket_message(connection_socket, MeshConnect(other_peer_addrgports))
+            send_socket_message(connection_socket, MeshConnect(other_peer_addr_ports))
     
             self.add_new_peer(connection_socket, addr_port)
 

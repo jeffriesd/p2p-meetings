@@ -65,8 +65,9 @@ P2P_MESSAGE_FIELDS = ["type", "message", "data"]
 P2P_TEXT   = "p2p_text" # normal text message between nodes 
 # P2P_BANNED = "p2p_banned" # user is banned from the meeting 
 P2P_USERNAME = "p2p_username"
+P2P_REGISTER_PORT= "p2p_register_port"
 P2P_MESH_CONNECT = "p2p_mesh_connect"
-P2P_MESSAGE_TYPES = [P2P_TEXT, P2P_USERNAME, P2P_MESH_CONNECT]
+P2P_MESSAGE_TYPES = [P2P_TEXT, P2P_USERNAME, P2P_MESH_CONNECT, P2P_REGISTER_PORT]
 #
 # maybe have like special types of 'control' messages
 # - RegisterUsername , MeshConnect
@@ -120,6 +121,24 @@ class RegisterUsername(P2PMessage):
     def is_valid(self):
         return super().is_valid() \
                 and (type(self.data.username) is str)
+
+class RegisterPort(P2PMessage):
+    """
+    Sent from MeshAudienceNode to MeshHostNode to 
+    register their p2p port for the meeting. 
+    (The port via which other peers will 
+    connect to this peer in the full-mesh network.)
+    """
+    def __init__(self, meeting_port):
+        super().__init__()
+
+        self.type = P2P_USERNAME
+        # pass username using data field
+        self.data = { "p2p_port" : meeting_port }
+
+    def is_valid(self):
+        return super().is_valid() \
+                and (type(self.data.meeting_port) is int)
 
 class MeshConnect(P2PMessage):
     """
@@ -182,6 +201,11 @@ class PeerInfo:
         self.listen_thread = listen_thread
 
         self.listening_port = listening_port
+
+        self.p2p_port = None
+
+    def set_p2p_port(self, port):
+        self.p2p_port = port
 
 class HostNode:
     """
@@ -424,6 +448,8 @@ class MeshAudienceNode(HostNode):
 
         # tell the host our preferred username 
         send_socket_message(self.host_socket, RegisterUsername(username))
+        # tell the host our p2p socket
+        send_socket_message(self.host_socket, RegisterPort(p2p_port))
 
         # create new PeerInfo object for host and start listening 
         # to its socket 
@@ -518,10 +544,15 @@ class MeshHostNode(HostNode):
             welcome_message = P2PText("You are connected to host %s!" % self.username)
             send_socket_message(connection_socket, welcome_message)
 
-            # send addresses of other peers when a new user connects
-            other_peer_addr_ports = list(self.peers.keys())
-            # other_peer_addr_ports = []
-            # for addr_port in self.peers:
+            # send addresses of other peers when a new user connects,
+            # so new user can connect to all of the peers in the list 
+            other_peer_addr_ports = []
+            for addr_port in self.peers:
+                peer_obj = self.peers[addr_port] 
+                if peer_obj.p2p_port: # peer must have registered p2p port with host 
+                    other_peer_addr_ports.append(addr_port[0], peer_obj.p2p_port)
+
+            print("other_peers = ", other_peer_addr_ports)
 
             send_socket_message(connection_socket, MeshConnect(other_peer_addr_ports))
     

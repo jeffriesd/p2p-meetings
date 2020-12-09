@@ -132,7 +132,7 @@ class RegisterPort(P2PMessage):
     def __init__(self, meeting_port):
         super().__init__()
 
-        self.type = P2P_USERNAME
+        self.type = P2P_REGISTER_PORT
         # pass username using data field
         self.data = { "p2p_port" : meeting_port }
 
@@ -203,9 +203,6 @@ class PeerInfo:
         self.listening_port = listening_port
 
         self.p2p_port = None
-
-    def set_p2p_port(self, port):
-        self.p2p_port = port
 
 class HostNode:
     """
@@ -293,9 +290,18 @@ class HostNode:
         """
         return "Error: Unknown peer - %s" % (addr_port,)
 
+    def set_p2p_port(self, addr_port, p2p_port):
+        """
+        Safely set p2p port for a peer. 
+        """
+        if addr_port in self.peers:
+            self.peers[addr_port].p2p_port = p2p_port
+        else:
+            print(self.unknown_peer_error(addr_port), "for set_p2p_port")
+
     def set_username(self, addr_port, user_str):
         """ 
-        Safely set username of a peer
+        Safely set username of a peer.
         """
         if addr_port in self.peers:
             self.peers[addr_port].username = user_str
@@ -305,7 +311,7 @@ class HostNode:
     def get_username(self, addr_port):
         """
         Safely get username by checking first if 
-        peer is still connected
+        peer is still connected.
         """
         if addr_port in self.peers:
             return self.peers[addr_port].username
@@ -581,6 +587,14 @@ class MeshHostNode(HostNode):
         elif message_obj.type == P2P_MESH_CONNECT:
             # host shouldn't be receiving this, so ignore it
             pass
+        elif message_obj.type == P2P_REGISTER_PORT:
+            # register p2p port for this peer
+            # so future peers can connect to it
+            
+            print("Setting p2p port for = ", p2p_port, "for ", addr_port)
+
+            self.set_p2p_port(addr_port, message_obj.data.p2p_port)
+
         else:
             print("Unknown message type: ", message_obj.type)
 

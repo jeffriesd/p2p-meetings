@@ -11,6 +11,9 @@ def connect_to_peer(addr_port):
     conn_socket = socket(AF_INET, SOCK_STREAM)
     conn_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # FOR DEBUGGING
 
+    if type(addr_port) is list:
+        addr_port = tuple(addr_port)
+
     try:
         # connecting to another mesh peer P will cause 
         # P to add a new entry to P.peers and create a new

@@ -23,6 +23,15 @@ class MeetingEntry:
         self.usernames = set()
         self.usernames.add(HOST_USERNAME)
 
+        # set of ports used in this p2p network
+        self.meeting_ports = set()
+
+    def has_port(self, port):
+        return port in self.ports
+
+    def add_port(self, port):
+        self.meeting_ports.add(port)
+
     def has_username(self, name):
         return name in self.usernames
 
@@ -183,21 +192,37 @@ class Server:
             meetingID = self.new_meetingID()
 
             # determine port for p2p connections for this new meeting
-            p2p_port = get_meeting_port(meetingID)
-
+            # (must be unique to this meeting in case other peers 
+            # have the same IP addr)
+            p2p_port = self.get_new_meeting_port(meetingID)
 
             # store address and p2p port so other users can join 
             # this meeting in the future 
             if mtng_request.data.meetingType == STAR:
-                response = CreateStarSuccess(meetingID)
+                response = CreateStarSuccess(meetingID, p2p_port)
                 self.meetings[meetingID] = StarMeetingEntry((addr_port[0], p2p_port))
 
             if mtng_request.data.meetingType == MESH:
-                response = CreateMeshSuccess(meetingID)
+                response = CreateMeshSuccess(meetingID, p2p_port)
                 self.meetings[meetingID] = MeshMeetingEntry((addr_port[0], p2p_port))
 
         # send response to requesting client 
         self.send_response(response, conn_socket)
+
+
+    def get_new_meeting_port(self, meetingID):
+        """ 
+        Return port number that is unique to a
+        particular set of peers. 
+        """
+
+        if meetingID in self.meetings:
+            meeting_entry = self.meetings[meetingID]
+
+            if meeting_entry.meeting_ports:
+                max_port = max(self.meetings[meetingID].meeting_ports)
+                return max_port + 1
+        return DEFAULT_P2P_PORT
 
 
 

@@ -22,7 +22,7 @@ MEETING_TYPES = [STAR, MESH]
 # valid fields of application messages 
 DATA_FIELDS = [
     "meetingType", "meetingID", 
-    "hosts", "username", "host", 
+    "hosts", "username", "host", "p2p_port"
 ]
 
 class SocketMessage:
@@ -269,18 +269,18 @@ class JoinFailure(ServerResponse):
         self.data = None
 
 class CreateStarSuccess(ServerResponse):
-    def __init__(self, meetingID):
+    def __init__(self, meetingID, p2p_port):
         super().__init__()
         self.message = "Create request successful! Creating new meeting..."
-        self.data = { "meetingID" : meetingID , "meetingType" : STAR } 
+        self.data = { "meetingID" : meetingID , "meetingType" : STAR , "p2p_port" : p2p_port} 
         self.type = CREATE
         self.success = True 
 
 class CreateMeshSuccess(ServerResponse):
-    def __init__(self, meetingID):
+    def __init__(self, meetingID, p2p_port):
         super().__init__()
         self.message = "Create request successful! Creating new meeting..."
-        self.data = { "meetingID" : meetingID , "meetingType" : MESH } 
+        self.data = { "meetingID" : meetingID , "meetingType" : MESH , "p2p_port" : p2p_port } 
         self.type = CREATE
         self.success = True 
 

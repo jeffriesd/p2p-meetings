@@ -136,7 +136,7 @@ class Client:
             if response_obj.success:
                 print("Client action: Create new room with meeting ID", response_obj.data.meetingID)
 
-                meeting_port = get_meeting_port(response_obj.data.meetingID)
+                meeting_port = response_obj.data.p2p_port
 
                 # create a meeting with star-shaped network topology
                 if response_obj.data.meetingType == STAR:

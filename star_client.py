@@ -174,12 +174,14 @@ class PeerInfo:
     such as username, warnings, etc. 
     """
 
-    def __init__(self, conn_socket, listen_thread, username=DEFAULT_USERNAME):
+    def __init__(self, conn_socket, listen_thread, listening_port, username=DEFAULT_USERNAME):
         self.conn_socket = conn_socket
         self.user_warnings = 0
         self.username = username
 
         self.listen_thread = listen_thread
+
+        self.listening_port = listening_port
 
 class HostNode:
     """
@@ -200,6 +202,8 @@ class HostNode:
         # and other peer info 
         self.peers = {}
 
+        # this is the port used for incoming traffic 
+        # to this node 
         self.p2p_port = p2p_port
 
         # wait for connections in a separate thread

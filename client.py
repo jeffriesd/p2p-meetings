@@ -147,6 +147,7 @@ class Client:
 
                 # create a meeting with full-mesh network topology
                 if response_obj.data.meetingType == MESH:
+                    host_username = "meshhost-%s" % response_obj.data.meetingID
                     # TODO wrap this in try/except in case it fails 
                     self.host = MeshHostNode(host_username, meeting_port)
 

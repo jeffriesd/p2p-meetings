@@ -466,6 +466,7 @@ class MeshAudienceNode(HostNode):
         """
         
         for addr_port in peer_addr_ports:
+            print("connecting to ", addr_port)
             conn_socket = connect_to_peer(addr_port)
             
             # add new peer object to self.peers and create a new

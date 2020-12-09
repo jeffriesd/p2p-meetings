@@ -424,22 +424,22 @@ class AudienceNode:
         self.connection_thread.start()
 
     
-    # def ask_question(self, msg_str):
-    #     """
-    #     Send a message to the host, which will 
-    #     potentially be broadcast to the entire meeting
-    #     after review. 
-    #     """
-    #     send_socket_message(self.client_socket, P2PText(msg_str))
+    def ask_question(self, msg_str):
+        """
+        Send a message to the host, which will 
+        potentially be broadcast to the entire meeting
+        after review. 
+        """
+        send_socket_message(self.client_socket, P2PText(msg_str))
 
 
-    def send_text(self, peer_addr, msg_str):
-        
-        if peer_addr in self.connections:
-            # TODO check that connection is still open ,
-            # if it's closed then remove it from self.connections
+    # def send_text(self, peer_addr, msg_str):
+    #     
+    #     if peer_addr in self.connections:
+    #         # TODO check that connection is still open ,
+    #         # if it's closed then remove it from self.connections
 
-            send_socket_message(self.connections[peer_addr], P2PText(msg_str))
+    #         send_socket_message(self.connections[peer_addr], P2PText(msg_str))
 
 
 

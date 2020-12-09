@@ -63,14 +63,9 @@ class Client:
         self.client_socket = socket(AF_INET, SOCK_STREAM)
 
         try:
-             
-            # self.client_socket.connect(('localhost', SERVER_PORT))
+            # try connecting to central server 
             self.client_socket.connect((SERVER_IP, SERVER_PORT))
         except Exception as e:
-            # try: 
-            #     # workaround for connecting from local machine 
-            #     self.client_socket.connect(("localhost", SERVER_PORT))
-            # except Exception as e:
             print("Failed to connect with central server:", e, SERVER_IP, SERVER_PORT)
             return
 
@@ -103,6 +98,8 @@ class Client:
         if response_obj.type == JOIN:
             if response_obj.success:
                 
+                # Join a star-shaped meeting, so just connect
+                # with the host. 
                 if response_obj.data.meetingType == STAR:
                     print("Client action: join with ", response_obj.data.host)
                     host_addr, host_port = response_obj.data.host
@@ -112,31 +109,51 @@ class Client:
                     # aud = AudienceNode("new user", host_addr)
                     self.aud = AudienceNode("new_user123", host_addr, host_port)
 
+                # Join a full-mesh meeting, new tcp 
+                # connections will be created between the 
+                # joining user and all other nodes in the mesh network. 
                 elif response_obj.data.meetingType == MESH:
                     pass
 
+                # TODO maybe keep connection open in case 
+                # meeting closes and user wants to 
+                # go back to the "waiting room"
+                #
                 # disconnect from central server
                 self.disconnect_from_server()
 
             else:
                 print("Join request failed: ", response_obj.message)
 
+
+        # Create a new meeting. The underlying network initially 
+        # contains just the host node. As other users 
+        # request to join, a p2p network will be built up 
         if response_obj.type == CREATE:
             if response_obj.success:
                 print("Client action: Create new room with meeting ID", response_obj.data.meetingID)
-                # TODO establish new room 
 
                 # what kind of room to create:
 
+                # create a meeting with star-shaped network topology
                 if response_obj.data.meetingType == STAR:
                     room_name = "meeting-%s" % response_obj.data.meetingID
                     # host = HostNode(room_name)
+                    #
+                    # TODO wrap this in try/except in case it fails 
+                    #
                     self.host = HostNode(room_name, get_meeting_port(response_obj.data.meetingID))
 
+                # create a meeting with full-mesh network topology
                 if response_obj.data.meetingType == MESH:
+
+                    # TODO create new host for mesh meeting
                     pass
 
+
+                # TODO maybe keep connection alive.. 
                 self.disconnect_from_server()
+
             else:
                 print("Create request failed: ", response_obj.message)
 

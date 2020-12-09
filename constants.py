@@ -7,6 +7,8 @@ import time
 # AWS 
 SERVER_IP = "3.132.213.19"
 
+DEFAULT_USERNAME = "default_user"
+
 # this application uses port 40 
 # since port 40 is unassigned according IANA:
 # https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml

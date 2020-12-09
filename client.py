@@ -102,9 +102,6 @@ class Client:
 
 
             if response_obj.success:
-                # TODO broadcast username to meeting when joining !!! 
-
-
                 host_addr, host_port = response_obj.data.host
                 username = response_obj.data.username 
 
@@ -139,24 +136,22 @@ class Client:
             if response_obj.success:
                 print("Client action: Create new room with meeting ID", response_obj.data.meetingID)
 
-                # what kind of room to create:
+                meeting_port = get_meeting_port(response_obj.data.meetingID)
 
                 # create a meeting with star-shaped network topology
                 if response_obj.data.meetingType == STAR:
                     host_username = "starhost-%s" % response_obj.data.meetingID
                     # TODO wrap this in try/except in case it fails 
                     #
-                    self.host = StarHostNode(host_username, get_meeting_port(response_obj.data.meetingID))
+                    self.host = StarHostNode(host_username, meeting_port)
 
                 # create a meeting with full-mesh network topology
                 if response_obj.data.meetingType == MESH:
+                    # TODO wrap this in try/except in case it fails 
+                    self.host = MeshHostNode(host_username, meeting_port)
 
-                    # TODO create new host for mesh meeting
-                    pass
-
-
-                # TODO maybe keep connection alive.. 
-                self.disconnect_from_server()
+                # # TODO maybe keep connection alive.. 
+                # self.disconnect_from_server()
 
             else:
                 print("Create request failed: ", response_obj.message)

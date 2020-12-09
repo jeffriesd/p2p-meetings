@@ -116,7 +116,9 @@ class Client:
                 # connections will be created between the 
                 # joining user and all other nodes in the mesh network. 
                 elif response_obj.data.meetingType == MESH:
-                    self.aud = MeshAudienceNode(username, host_addr, host_port)
+                    # server should have assigned us a unique p2p port
+                    p2p_port = response_obj.data.p2p_port
+                    self.aud = MeshAudienceNode(username, host_addr, host_port, p2p_port)
 
                 # TODO maybe keep connection open in case 
                 # meeting closes and user wants to 

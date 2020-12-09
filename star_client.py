@@ -409,10 +409,10 @@ class MeshAudienceNode(HostNode):
     """
 
     # override constructor to add connection to host
-    def __init__(self, username, host_addr, host_port):
+    def __init__(self, username, host_addr, host_port, p2p_port):
         # initialize username, self.peers, 
         # self.p2p_port, and self.connection_thread
-        super().__init__(username, host_port)
+        super().__init__(username, p2p_port)
 
         self.host_addr = host_addr
         self.host_port = host_port

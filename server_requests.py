@@ -252,10 +252,10 @@ class JoinStarSuccess(ServerResponse):
         self.success = True 
 
 class JoinMeshSuccess(ServerResponse):
-    def __init__(self, host_addr_port, username):
+    def __init__(self, host_addr_port, username, p2p_port):
         super().__init__()
         self.message = "Join request successful! Preparing to join..."
-        self.data = { "host" : host_addr_port , "meetingType": MESH , "username" : username}
+        self.data = { "host" : host_addr_port , "meetingType": MESH , "username" : username, "p2p_port" : p2p_port}
         self.type = JOIN
         self.success = True 
 

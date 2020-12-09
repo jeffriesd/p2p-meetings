@@ -209,7 +209,7 @@ class Server:
             # determine port for p2p connections for this new meeting
             # (must be unique to this meeting in case other peers 
             # have the same IP addr)
-            p2p_port = self.new_meeting_port(meetingID)
+            p2p_port = self.new_meeting_port()
 
             # store address and p2p port so other users can join 
             # this meeting in the future 

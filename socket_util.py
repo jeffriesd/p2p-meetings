@@ -16,9 +16,9 @@ def connect_to_peer(addr_port):
         conn_socket.connect(addr_port)
         print("Connected successfully to peer ", addr_port)
         return conn_socket
-    except:
+    except Exception as e:
         conn_socket.close()
-        print("Connection with meeting host failed: ", addr_port)
+        print("Connection with meeting host failed: ", addr_port, e)
         return None
     
 

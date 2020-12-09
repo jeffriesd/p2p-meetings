@@ -46,8 +46,11 @@ class Client:
         # connect to central server
         self.connect_with_server()
     
-    def create(self):
+    def star_create(self):
         send_socket_message(self.client_socket, CreateStarRequest())
+
+    def mesh_create(self):
+        send_socket_message(self.client_socket, CreateMeshRequest())
 
     def join(self, n, user_str):
         send_socket_message(self.client_socket, JoinRequest(n, user_str))

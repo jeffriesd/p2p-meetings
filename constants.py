@@ -11,7 +11,7 @@ DEFAULT_USERNAME = "default_user"
 HOST_USERNAME = "HOST"
 
 SERVER_PORT = 40
-DEFAULT_P2P_PORT = 2500
+DEFAULT_P2P_PORT = 2510
 
 # maximum number of queued connection 
 # requests for a host 

@@ -181,185 +181,6 @@ class PeerInfo:
 
         self.listen_thread = listen_thread
 
-
-class MeshAudienceNode(HostNode):
-    """
-    MeshAudienceNodes are the same as MeshHostNodes in almost all aspects:
-    - they wait for incoming connection requests, and when they accept a new 
-      connection from a peer, they create a new PeerInfo object
-      and start listening for messages from the new peer. 
-
-    The primary difference is in the initialization. 
-    A MeshAudienceNode must send a connection request 
-    to every other member of the network so the 
-    mesh becomes fully connected again. 
-    """
-
-#     # override HostNode constructor to add
-#     # peer initialization 
-#     def __init__(self, name, p2p_port):
-#         self.room_name = name
-# 
-#         # maintain dictionary mapping
-#         # (addr,port) -> PeerInfo,
-#         # which contains socket object 
-#         # and other peer info 
-#         self.peers = {}
-# 
-#         # initialize peers
-#         self.peer_addr_ports = peer_addr_ports
-#         self.initialize_peers()
-# 
-#         self.p2p_port = p2p_port
-# 
-#         # wait for connections in a separate thread
-#         self.connection_thread = threading.Thread(target=self.wait_for_connections)
-#         self.connection_thread.start()
-
-    def handle_p2p_message(self, addr_port, message_obj):
-        """
-        Handle a validated P2PMessage object, 
-        split by cases on the type of the message. 
-
-        addr_port - address of socket that produced this incoming message
-        message_obj - P2PMessage object 
-        """
-
-        if message_obj.type == P2P_TEXT:
-            # regular text from AudienceNode to HostNode
-            # self.handle_question(addr_port, message_obj.message)
-            peer_username = self.get_username(addr_port)
-            print("%s says: %s" % (peer_username, message_obj.message))
-
-        elif message_obj.type == P2P_USERNAME:
-            # update username of this peer
-            self.set_username(addr_port, message_obj.data.username)
-
-        elif message_obj.type == P2P_MESH_CONNECT:
-            self.connect_to_mesh(message_obj.data.hosts)
-        else:
-            print("Unknown message type: ", message_obj.type)
-
-
-    def connect_to_mesh(self, peer_addr_ports):
-        """
-        Make a connection request to every peer 
-        in the provided list 
-        """
-        
-        for addr_port in peer_addr_ports:
-            conn_socket = socket(AF_INET, SOCK_STREAM)
-            try:
-                # connecting to another mesh peer P will cause 
-                # P to add a new entry to P.peers and create a new
-                # thread to listen to messages from this user
-                conn_socket.connect(addr_port)
-                print("Connected successfully to peer ", addr_port)
-            except:
-                conn_socket.close()
-                print("Connection with meeting host failed. Host_addr = ", host_addr)
-                continue 
-            
-            # add new peer object to self.peers and create a new
-            # thread to listen for messages from this peer
-            # 
-            # Now there is a two-way connection from this user
-            # to the peer at addr_port
-            self.add_new_peer(conn_socket, addr_port)
-
-# TODO  
-# actually, maybe MeshHostNode shoudl be responsible for 
-# connecting new meeting joinees with 
-# other peers, so server doesn't need to keep track
-# of anyone but host
-class MeshHostNode(HostNode):
-    """
-    Mesh host node simply waits for incoming tcp requests.
-    Once a new connection is made with a peer P, the host 
-    can broadcast messages to P and all other connected peers. 
-
-    Non-host nodes are responsible for creating the tcp connection
-    from the host to themselves. 
-    """
-
-    def wait_for_connections(self):
-        """
-        Wait for incoming tcp connection requests, 
-        then send some test data when they connect.
-
-        Since incoming tcp connection requests are 
-        users trying to join the full-mesh network, 
-        MeshHostNode will send the new user 
-        a list of peer ips. 
-        """
-        accept_socket = socket(AF_INET, SOCK_STREAM)
-        # accept_socket.bind(('', P2P_PORT))
-        accept_socket.bind(('', self.p2p_port))
-        accept_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # FOR DEBUGGING
-        accept_socket.listen(MAX_QUEUED_REQUESTS)
-
-        while True:
-            connection_socket, addr_port = accept_socket.accept()
-            print("Host: received a new connection request")
-
-            # TODO maybe REQUEST username from client 
-            welcome_message = P2PText("You are connected to host %s!" % self.room_name)
-            send_socket_message(connection_socket, welcome_message)
-
-            # send addresses of other peers when a new user connects
-            other_peer_port_addrs = list(self.peers.keys())
-            send_socket_message(connection_socket, MeshConnect(other_peer_port_addrs))
-    
-            self.add_new_peer(connection_socket, addr_port)
-
-
-    def handle_p2p_message(self, addr_port, message_obj):
-        """
-        Handle a validated P2PMessage object, 
-        split by cases on the type of the message. 
-
-        addr_port - address of socket that produced this incoming message
-        message_obj - P2PMessage object 
-        """
-
-        if message_obj.type == P2P_TEXT:
-            # regular text from AudienceNode to HostNode
-            # self.handle_question(addr_port, message_obj.message)
-            peer_username = self.get_username(addr_port)
-            print("%s says: %s" % (peer_username, message_obj.message))
-
-        elif message_obj.type == P2P_USERNAME:
-            # update username of this peer
-            self.set_username(addr_port, message_obj.data.username)
-
-        elif message_obj.type == P2P_MESH_CONNECT:
-            # host shouldn't be receiving this, so ignore it
-            pass
-        else:
-            print("Unknown message type: ", message_obj.type)
-
-
-    def direct_message_username(self, username, message_str):
-        """
-        Send a peer a message based on their unique username. 
-        Print an error message if the username is not unique.
-        """
-        usernames = [p.username for p in self.peers.values()]
-
-        # check if usernames are all distinct
-        if len(set(usernames)) < len(usernames):
-            print("Error: Duplicate usernames")
-
-        else:
-            for addr_port in self.peers:
-                if self.peers[addr_port].username == username:
-                    self.direct_message(addr_port, message_str)
-                    break
-            # python for-else (else body executes if break never happens)
-            else:
-                print("Error: No peer with username '%s'" % username)
-
-
 class HostNode:
     """
     host nodes 
@@ -371,7 +192,7 @@ class HostNode:
     """
 
     def __init__(self, name, p2p_port):
-        self.room_name = name
+        self.username = name
 
         # maintain dictionary mapping
         # (addr,port) -> PeerInfo,
@@ -400,13 +221,12 @@ class HostNode:
             connection_socket, addr_port = accept_socket.accept()
             print("Host: received a new connection request")
 
-            # TODO maybe REQUEST username from client 
-            welcome_message = P2PText("You are connected to host %s!" % self.room_name)
+            welcome_message = P2PText("You are connected to host %s!" % self.username)
             send_socket_message(connection_socket, welcome_message)
 
             self.add_new_peer(connection_socket, addr_port)
 
-    def add_new_peer(self, connection_socket, addr_port):
+    def add_new_peer(self, connection_socket, addr_port, username=DEFAULT_USERNAME):
         """
         Create a new peer connection object and add
         it to self.peers. First check if this peer is already connected. 
@@ -419,7 +239,7 @@ class HostNode:
         listen_thread = self.make_listen_thread(connection_socket, addr_port)
 
         # assign default username 
-        self.peers[addr_port] = PeerInfo(connection_socket, listen_thread, DEFAULT_USERNAME)
+        self.peers[addr_port] = PeerInfo(connection_socket, listen_thread, username)
         self.peers[addr_port].listen_thread.start()
 
 
@@ -531,6 +351,27 @@ class HostNode:
         else:
             print(self.unknown_peer_error(addr_port), "for direct_message")
 
+    def direct_message_username(self, username, message_str):
+        """
+        Send a peer a message based on their unique username. 
+        Print an error message if the username is not unique.
+        """
+        usernames = [p.username for p in self.peers.values()]
+
+        # check if usernames are all distinct
+        if len(set(usernames)) < len(usernames):
+            print("Error: Duplicate usernames")
+
+        else:
+            for addr_port in self.peers:
+                if self.peers[addr_port].username == username:
+                    self.direct_message(addr_port, message_str)
+                    break
+            # python for-else (else body executes if break never happens)
+            else:
+                print("Error: No peer with username '%s'" % username)
+
+
     def broadcast_message(self, msg_str):
         """
         Given a message as a string, send it to every peer. 
@@ -540,6 +381,173 @@ class HostNode:
             self.direct_message(addr_port, msg_str)
 
 
+
+
+
+
+#######################################################
+#######################################################
+
+class MeshAudienceNode(HostNode):
+    """
+    MeshAudienceNodes are the same as MeshHostNodes in almost all aspects:
+    - they wait for incoming connection requests, and when they accept a new 
+      connection from a peer, they create a new PeerInfo object
+      and start listening for messages from the new peer. 
+
+    The primary difference is in the initialization. 
+    A MeshAudienceNode must send a connection request 
+    to every other member of the network so the 
+    mesh becomes fully connected again. 
+
+    MeshAudienceNode always broadcasts its preferred 
+    username to all peers when sending these connection requests.
+    """
+
+    # override constructor to add connection to host
+    def __init__(self, username, host_addr, host_port):
+        # initialize username, self.peers, 
+        # self.p2p_port, and self.connection_thread
+        super().__init__(username, host_port)
+
+        self.host_addr = host_addr
+        self.host_port = host_port
+
+        # connect to host 
+        self.host_socket = connect_to_peer((host_addr, host_port))
+        if not self.host_socket: # if connection failed
+            return
+
+        # tell the host our preferred username 
+        send_socket_message(self.host_socket, RegisterUsername(username))
+
+        # create new PeerInfo object for host and start listening 
+        # to its socket 
+        self.add_new_peer(self.host_socket, (host_addr, host_port), username=HOST_USERNAME)
+
+
+    def handle_p2p_message(self, addr_port, message_obj):
+        """
+        MeshAudienceNode
+
+        Handle a validated P2PMessage object, 
+        split by cases on the type of the message. 
+
+        addr_port - address of socket that produced this incoming message
+        message_obj - P2PMessage object 
+        """
+
+        if message_obj.type == P2P_TEXT:
+            # regular text from AudienceNode to HostNode
+            # self.handle_question(addr_port, message_obj.message)
+            peer_username = self.get_username(addr_port)
+            print("%s says: %s" % (peer_username, message_obj.message))
+
+        elif message_obj.type == P2P_USERNAME:
+            # update username of this peer
+            self.set_username(addr_port, message_obj.data.username)
+
+        elif message_obj.type == P2P_MESH_CONNECT:
+            # meeting host gives us list of (addr,port) pairs 
+            # so we can connect to the rest of the network
+            self.connect_to_mesh(message_obj.data.hosts)
+        else:
+            print("Unknown message type: ", message_obj.type)
+
+
+    def connect_to_mesh(self, peer_addr_ports):
+        """
+        Make a connection request to every peer 
+        in the provided list 
+        """
+        
+        for addr_port in peer_addr_ports:
+            conn_socket = connect_to_peer(addr_port)
+            
+            # add new peer object to self.peers and create a new
+            # thread to listen for messages from this peer
+            # 
+            # Now there is a two-way connection from this user
+            # to the peer at addr_port
+            if conn_socket:
+                self.add_new_peer(conn_socket, addr_port)
+
+
+
+class MeshHostNode(HostNode):
+    """
+    Mesh host node simply waits for incoming tcp requests.
+    Once a new connection is made with a peer P, the host 
+    can broadcast messages to P and all other connected peers. 
+
+    Non-host nodes are responsible for creating the tcp connection
+    from the host to themselves. 
+
+
+    If the host leaves the meeting, then it will no longer 
+    be listed by the server and so other users can no longer join. 
+    However, the remaining members of the mesh meeting 
+    should still be able to communicate. 
+    """
+
+    def wait_for_connections(self):
+        """
+        Wait for incoming tcp connection requests, 
+        then send some test data when they connect.
+
+        Since incoming tcp connection requests are 
+        users trying to join the full-mesh network, 
+        MeshHostNode will send the new user 
+        a list of peer ips. 
+        """
+        accept_socket = socket(AF_INET, SOCK_STREAM)
+        # accept_socket.bind(('', P2P_PORT))
+        accept_socket.bind(('', self.p2p_port))
+        accept_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # FOR DEBUGGING
+        accept_socket.listen(MAX_QUEUED_REQUESTS)
+
+        while True:
+            connection_socket, addr_port = accept_socket.accept()
+            print("Host: received a new connection request")
+
+            welcome_message = P2PText("You are connected to host %s!" % self.username)
+            send_socket_message(connection_socket, welcome_message)
+
+            # send addresses of other peers when a new user connects
+            other_peer_port_addrs = list(self.peers.keys())
+            send_socket_message(connection_socket, MeshConnect(other_peer_port_addrs))
+    
+            self.add_new_peer(connection_socket, addr_port)
+
+
+    def handle_p2p_message(self, addr_port, message_obj):
+        """
+        Handle a validated P2PMessage object, 
+        split by cases on the type of the message. 
+
+        addr_port - address of socket that produced this incoming message
+        message_obj - P2PMessage object 
+        """
+
+        if message_obj.type == P2P_TEXT:
+            # regular text from AudienceNode to HostNode
+            # self.handle_question(addr_port, message_obj.message)
+            peer_username = self.get_username(addr_port)
+            print("%s says: %s" % (peer_username, message_obj.message))
+
+        elif message_obj.type == P2P_USERNAME:
+            # update username of this peer
+            self.set_username(addr_port, message_obj.data.username)
+
+        elif message_obj.type == P2P_MESH_CONNECT:
+            # host shouldn't be receiving this, so ignore it
+            pass
+        else:
+            print("Unknown message type: ", message_obj.type)
+
+
+#######################################################
+#######################################################
 
 
 
@@ -608,45 +616,41 @@ class StarHostNode(HostNode):
                 # close connection and delete any information about client from 'addr_port'
                 self.remove_user(addr_port)
      
+
+
 class AudienceNode:
     """ 
     Audience nodes make a single connection
     from themselves to the host node. 
     """
 
-    def __init__(self, name, host_addr, host_port):
+    def __init__(self, username, host_addr, host_port):
         """
         Connect to host and save reference to the socket object.
         """
 
         self.host_addr = host_addr
         self.host_port = host_port
-        # self.host_addr = host_addr
-        # create new tcp connection with hosting peer
-        self.client_socket = socket(AF_INET, SOCK_STREAM)
 
-        try:
-            self.client_socket.connect((host_addr, host_port))
-            print("Connected successfully to host.")
-        except:
-            self.client_socket.close()
-            print("Connection with meeting host failed. Host_addr = ", host_addr)
+        # create new tcp connection with hosting peer
+        self.client_socket = connect_to_peer((host_addr, host_port))
+        if self.client_socket is None: # connection failed
             return
 
+
         # tell the host our preferred username 
-        send_socket_message(self.client_socket, RegisterUsername(name))
+        send_socket_message(self.client_socket, RegisterUsername(username))
 
         # listen for messages from host 
-        self.connection_thread = \
+        self.host_listen_thread = \
             ListenThread(P2PMessage, \
                         self.client_socket, \
-                        lambda pm: print("New message from host:", pm.message), \
+                        lambda pm: print("user %s: New message from host:" % username, pm.message), \
 
                         # TODO do something to reconnect with central server 
                         lambda: print("Connection with meeting host closed."))
 
-        self.connection_thread.start()
-
+        self.host_listen_thread.start()
     
     def ask_question(self, msg_str):
         """
@@ -655,16 +659,5 @@ class AudienceNode:
         after review. 
         """
         send_socket_message(self.client_socket, P2PText(msg_str))
-
-
-    # def send_text(self, peer_addr, msg_str):
-    #     
-    #     if peer_addr in self.connections:
-    #         # TODO check that connection is still open ,
-    #         # if it's closed then remove it from self.connections
-
-    #         send_socket_message(self.connections[peer_addr], P2PText(msg_str))
-
-
 
 

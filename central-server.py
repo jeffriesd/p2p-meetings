@@ -21,6 +21,7 @@ class MeetingEntry:
 
         # keep track of usernames registered within a meeting 
         self.usernames = set()
+        self.usernames.add(HOST_USERNAME)
 
     def has_username(self, name):
         return name in self.usernames
@@ -157,7 +158,9 @@ class Server:
 
                 # check if username is already taken 
                 requested_username = mtng_request.data.username 
-                if meeting_entry.has_username(requested_username):
+                if meeting_entry.has_username(requested_username) or \
+                    requested_username in [HOST_USERNAME, DEFAULT_USERNAME]:
+
                     response = JoinFailure("Username '%s' already taken. Please choose another.")
                 else:
                     # add new username to record for this meeting 

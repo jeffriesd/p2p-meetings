@@ -3,6 +3,24 @@ import threading
 from constants import * 
 from server_requests import * 
 
+def connect_to_peer(addr_port):
+    """
+    Try to connect to host at addr_port 
+    and return socket object on success. 
+    """
+    conn_socket = socket(AF_INET, SOCK_STREAM)
+    try:
+        # connecting to another mesh peer P will cause 
+        # P to add a new entry to P.peers and create a new
+        # thread to listen to messages from this user
+        conn_socket.connect(addr_port)
+        print("Connected successfully to peer ", addr_port)
+        return conn_socket
+    except:
+        conn_socket.close()
+        print("Connection with meeting host failed: ", addr_port)
+        return None
+    
 
 def safe_send(conn_socket, msg_bytes):
     try:

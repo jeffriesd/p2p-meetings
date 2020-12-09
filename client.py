@@ -140,12 +140,10 @@ class Client:
 
                 # create a meeting with star-shaped network topology
                 if response_obj.data.meetingType == STAR:
-                    room_name = "meeting-%s" % response_obj.data.meetingID
-                    # host = StarHostNode(room_name)
-                    #
+                    host_username = "starhost-%s" % response_obj.data.meetingID
                     # TODO wrap this in try/except in case it fails 
                     #
-                    self.host = StarHostNode(room_name, get_meeting_port(response_obj.data.meetingID))
+                    self.host = StarHostNode(host_username, get_meeting_port(response_obj.data.meetingID))
 
                 # create a meeting with full-mesh network topology
                 if response_obj.data.meetingType == MESH:

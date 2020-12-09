@@ -127,8 +127,7 @@ class MeetingRequest(SocketMessage):
             return True
 
         if self.type == JOIN:
-            return type(self.data.meetingID) is int \
-                and self.data.meetingType in MEETING_TYPES
+            return type(self.data.meetingID) is int 
 
         if self.type == CREATE:
             return self.data.meetingType in MEETING_TYPES

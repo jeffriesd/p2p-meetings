@@ -8,6 +8,7 @@ import time
 SERVER_IP = "3.132.213.19"
 
 DEFAULT_USERNAME = "default_user"
+HOST_USERNAME = "HOST"
 
 # this application uses port 40 
 # since port 40 is unassigned according IANA:

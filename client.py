@@ -49,8 +49,8 @@ class Client:
     def create(self):
         send_socket_message(self.client_socket, CreateStarRequest())
 
-    def join(self, n):
-        send_socket_message(self.client_socket, JoinStarRequest(n))
+    def join(self, n, user_str):
+        send_socket_message(self.client_socket, JoinRequest(n, user_str))
 
     def list(self):
         send_socket_message(self.client_socket, ListRequest())
@@ -96,31 +96,34 @@ class Client:
         response_obj - valid ServerResponse object
         """
         if response_obj.type == JOIN:
+
+
             if response_obj.success:
-                
+                # TODO broadcast username to meeting when joining !!! 
+
+
+                host_addr, host_port = response_obj.data.host
+                username = response_obj.data.username 
+
                 # Join a star-shaped meeting, so just connect
                 # with the host. 
                 if response_obj.data.meetingType == STAR:
-                    print("Client action: join with ", response_obj.data.host)
-                    host_addr, host_port = response_obj.data.host
 
                     # TODO wrap this with try/except (meeting may have closed)
-                    #
-                    # aud = AudienceNode("new user", host_addr)
-                    self.aud = AudienceNode("new_user123", host_addr, host_port)
+                    self.aud = AudienceNode(username, host_addr, host_port)
 
                 # Join a full-mesh meeting, new tcp 
                 # connections will be created between the 
                 # joining user and all other nodes in the mesh network. 
                 elif response_obj.data.meetingType == MESH:
-                    pass
+                    self.aud = MeshAudienceNode(username, host_addr, host_port)
 
                 # TODO maybe keep connection open in case 
                 # meeting closes and user wants to 
                 # go back to the "waiting room"
                 #
-                # disconnect from central server
-                self.disconnect_from_server()
+                # # disconnect from central server
+                # self.disconnect_from_server()
 
             else:
                 print("Join request failed: ", response_obj.message)
@@ -138,11 +141,11 @@ class Client:
                 # create a meeting with star-shaped network topology
                 if response_obj.data.meetingType == STAR:
                     room_name = "meeting-%s" % response_obj.data.meetingID
-                    # host = HostNode(room_name)
+                    # host = StarHostNode(room_name)
                     #
                     # TODO wrap this in try/except in case it fails 
                     #
-                    self.host = HostNode(room_name, get_meeting_port(response_obj.data.meetingID))
+                    self.host = StarHostNode(room_name, get_meeting_port(response_obj.data.meetingID))
 
                 # create a meeting with full-mesh network topology
                 if response_obj.data.meetingType == MESH:

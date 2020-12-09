@@ -6,22 +6,41 @@ from constants import *
 from socket_util import * 
 
 
-class StarMeetingEntry:
+class MeetingEntry:
+    """
+    Keep track of host (addr, port) 
+    and the set of usernames which have been claimed so far. 
+
+    Note that once a peer chooses a particular username in a 
+    meeting, no future peer can use this username in the same meeting,
+    even if the original peer with that username leaves. 
+    """
     def __init__(self, addr_port):
         self.host_addr_port = addr_port
         self.host_addr, self.host_port = addr_port 
 
-class MeshMeetingEntry:
-    def __init__(self, addr_port):
-        host_addr, host_port = addr_port 
+        # keep track of usernames registered within a meeting 
+        self.usernames = set()
 
-        self.host_addrs = [ host_addr ]
-        self.host_ports = [ host_port ]
+    def has_username(self, name):
+        return name in self.usernames
 
+    def add_username(self, name):
+        self.usernames.add(name)
+
+# StarMeetingEntry and MeshMeetingEntry 
+# have the exact same behavior, but they 
+# are handled differently when 
+# creating a response, so these classes
+# just provide a tag for which kind of meeting is being recorded. 
+class StarMeetingEntry(MeetingEntry):
+    pass
+
+class MeshMeetingEntry(MeetingEntry):
+    pass
 
 
 #######################################################
-
 
 class Server:
     """
@@ -41,7 +60,7 @@ class Server:
     def __init__(self):
 
 
-        # map meetingID to list of MeetingEntry
+        # map meetingID to MeetingEntry
         # objects 
         self.meetings = {} 
 
@@ -116,7 +135,7 @@ class Server:
         if response_obj.is_valid():
             safe_send(conn_socket, response_obj.encode())
         else:
-            print("INVALID RESOPNSE: ", response_obj)
+            print("Error: Cannot send invalid ServerResponse object: ", response_obj)
 
     def handle_request(self, mtng_request, conn_socket, addr_port):
         """ 
@@ -124,55 +143,55 @@ class Server:
 
         addr_port - ip address and port for socket connection from client to server... 
         """
-        
-        # print("SERVER: handling request from :", addr_port)
-
         if mtng_request.type == LIST:
+            # TODO LIST COMMAND<S-F7> SHOULD<S-F7> CHECK 
+            # WHETHER MEETINGS ARE OPEN !!!!!!!!!!!!!!!!!!!!!!!!11
+            # at least whether hosts are still connected. 
+
             # create new response with list of meeting ids
             response = ListResponse(list(self.meetings.keys()))
 
         elif mtng_request.type == JOIN:
             if mtng_request.data.meetingID in self.meetings:
-                # TODO if it exists, make sure it is accepting 
-                # new members (it may be full) and is of the right type
-                #
-                # (implement StarMeetingEntry etc.)
-                if mtng_request.data.meetingType == STAR:
-                    meeting_entry = self.meetings[mtng_request.data.meetingID]
+                meeting_entry = self.meetings[mtng_request.data.meetingID]
+
+                # check if username is already taken 
+                requested_username = mtng_request.data.username 
+                if meeting_entry.has_username(requested_username):
+                    response = JoinFailure("Username '%s' already taken. Please choose another.")
+                else:
+                    # add new username to record for this meeting 
+                    meeting_entry.add_username(requested_username)
+
                     if isinstance(meeting_entry, StarMeetingEntry):
-                        response = JoinStarSuccess(meeting_entry.host_addr_port)
+                        response = JoinStarSuccess(meeting_entry.host_addr_port, requested_username)
+                    elif isinstance(meeting_entry, MeshMeetingEntry):
+                        response = JoinMeshSuccess(meeting_entry.host_addr_port, requested_username)
                     else:
-                        response = JoinFailure("Meeting '%s' is not a star-meeting" % mtng_request.data.meetingID)
-                if mtng_request.data.meetingType == MESH:
-                    pass
-                    # response = JoinMeshSuccess(self.meetings[mtng_request.data.meetingID])
+                        response = JoinFailure("Meeting ID '%s' has wrong type." % mtng_request.data.meetingID)
             else:
                 response = JoinFailure("Meeting ID '%s' not found." % mtng_request.data.meetingID)
 
+        # create a new meeting and record the address of
+        # the host and the port that will be used to make connections
+        # in the p2p meeting network 
         elif mtng_request.type == CREATE:
-            # TODO maybe users should only be able to host one meeting ? 
-
+            # generate unique meetingID
             meetingID = self.new_meetingID()
 
-            # register new meeting with new ID
-            # self.meetings[meetingID] = [ addr_port ]
+            # determine port for p2p connections for this new meeting
+            p2p_port = get_meeting_port(meetingID)
 
+
+            # store address and p2p port so other users can join 
+            # this meeting in the future 
             if mtng_request.data.meetingType == STAR:
-
-                # determine port for p2p connections for this new meeting
-                p2p_port = get_meeting_port(meetingID)
-
                 response = CreateStarSuccess(meetingID)
-
-                # store address and p2p port so other users can join 
-                # this meeting in the future 
                 self.meetings[meetingID] = StarMeetingEntry((addr_port[0], p2p_port))
 
             if mtng_request.data.meetingType == MESH:
                 response = CreateMeshSuccess(meetingID)
-                # self.meetings[meetingID] = MeshMeetingEntry(addr_port)
-                #
-                # TODO 
+                self.meetings[meetingID] = MeshMeetingEntry((addr_port[0], p2p_port))
 
         # send response to requesting client 
         self.send_response(response, conn_socket)

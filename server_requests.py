@@ -141,19 +141,26 @@ class ListRequest(MeetingRequest):
         super().__init__()
         self.type = LIST
 
-class JoinStarRequest(MeetingRequest):
-    def __init__(self, meeting_id):
-        super().__init__()
-        self.type = JOIN
-        self.data = { "meetingType" : STAR ,
-                      "meetingID" : meeting_id }
 
-class JoinMeshRequest(MeetingRequest):
-    def __init__(self, meeting_id):
+class JoinRequest(MeetingRequest):
+    def __init__(self, meeting_id, username):
         super().__init__()
         self.type = JOIN
-        self.data = { "meetingType" : MESH , 
-                      "meetingID" : meeting_id }
+        self.data = { "meetingID" : meeting_id , "username" : username}
+
+# class JoinStarRequest(MeetingRequest):
+#     def __init__(self, meeting_id):
+#         super().__init__()
+#         self.type = JOIN
+#         self.data = { "meetingType" : STAR ,
+#                       "meetingID" : meeting_id }
+# 
+# class JoinMeshRequest(MeetingRequest):
+#     def __init__(self, meeting_id):
+#         super().__init__()
+#         self.type = JOIN
+#         self.data = { "meetingType" : MESH , 
+#                       "meetingID" : meeting_id }
 
 class CreateMeshRequest(MeetingRequest):
     def __init__(self):
@@ -238,18 +245,18 @@ class ListResponse(ServerResponse):
         self.data = meeting_id_list
 
 class JoinStarSuccess(ServerResponse):
-    def __init__(self, host_addr_port):
+    def __init__(self, host_addr_port, username):
         super().__init__()
         self.message = "Join request successful! Preparing to join..."
-        self.data = { "host" : host_addr_port, "meetingType": STAR }
+        self.data = { "host" : host_addr_port, "meetingType": STAR , "username" : username}
         self.type = JOIN
         self.success = True 
 
 class JoinMeshSuccess(ServerResponse):
-    def __init__(self, addr_port_pairs):
+    def __init__(self, host_addr_port, username):
         super().__init__()
         self.message = "Join request successful! Preparing to join..."
-        self.data = { "hosts" : addr_port_pairs , "meetingType": MESH }
+        self.data = { "host" : host_addr_port , "meetingType": MESH , "username" : username}
         self.type = JOIN
         self.success = True 
 

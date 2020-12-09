@@ -556,7 +556,7 @@ class MeshHostNode(HostNode):
             for addr_port in self.peers:
                 peer_obj = self.peers[addr_port] 
                 if peer_obj.p2p_port: # peer must have registered p2p port with host 
-                    other_peer_addr_ports.append(addr_port[0], peer_obj.p2p_port)
+                    other_peer_addr_ports.append((addr_port[0], peer_obj.p2p_port))
 
             print("other_peers = ", other_peer_addr_ports)
 

@@ -21,6 +21,7 @@ def connect_to_peer(addr_port):
     except Exception as e:
         conn_socket.close()
         print("Connection with meeting host failed: ", addr_port, e)
+        traceback.print_stack()
         return None
     
 

@@ -1,9 +1,8 @@
 from socket import *
 import threading
 from constants import * 
-from server_requests import * 
 from socket_util import * 
-from p2p_messages import * 
+from server_messages import * 
 
 # Author: Daniel Jeffries
 #
@@ -25,14 +24,14 @@ from p2p_messages import *
 #
 # if a user uses 'bad words' three times, they are 
 # kicked out of the meeting
+#
+#
+# TODO complete description of Mesh meetings etc. 
 
 
 
 ###############################################################
 ###############################################################
-
-
-
 class PeerInfo:
     """
     PeerInfo keeps track of 
@@ -89,7 +88,7 @@ class HostNode:
         # accept_socket.bind(('', P2P_PORT))
         accept_socket.bind(('', self.p2p_port))
         accept_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # FOR DEBUGGING
-        accept_socket.listen(MAX_QUEUED_REQUESTS)
+        accept_socket.listen()
 
         while True:
             connection_socket, addr_port = accept_socket.accept()
@@ -404,10 +403,9 @@ class MeshHostNode(HostNode):
         a list of peer ips. 
         """
         accept_socket = socket(AF_INET, SOCK_STREAM)
-        # accept_socket.bind(('', P2P_PORT))
         accept_socket.bind(('', self.p2p_port))
         accept_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # FOR DEBUGGING
-        accept_socket.listen(MAX_QUEUED_REQUESTS)
+        accept_socket.listen()
 
         while True:
             connection_socket, addr_port = accept_socket.accept()
@@ -565,8 +563,6 @@ class StarAudienceNode:
             ListenThread(P2PMessage, \
                         self.client_socket, \
                         lambda pm: print("New message from host:", pm.message), \
-
-                        # TODO do something to reconnect with central server 
                         lambda: print("Connection with meeting host closed."))
 
         self.host_listen_thread.start()

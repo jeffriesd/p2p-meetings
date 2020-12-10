@@ -1,7 +1,7 @@
 import json
 from socket import * 
 import threading 
-from server_requests import * 
+from server_messages import * 
 from constants import * 
 from socket_util import * 
 
@@ -15,7 +15,9 @@ class MeetingEntry:
     meeting, no future peer can use this username in the same meeting,
     even if the original peer with that username leaves. 
     """
-    def __init__(self, addr_port):
+    def __init__(self, conn_socket, addr_port):
+        self.conn_socket = conn_socket
+
         self.host_addr_port = addr_port
         self.host_addr, self.host_port = addr_port 
 
@@ -44,10 +46,14 @@ class MeetingEntry:
 # creating a response, so these classes
 # just provide a tag for which kind of meeting is being recorded. 
 class StarMeetingEntry(MeetingEntry):
-    pass
+    def __init__(self, conn_socket, addr_port):
+        super().__init__(conn_socket, addr_port)
+        self.meetingType = STAR
 
 class MeshMeetingEntry(MeetingEntry):
-    pass
+    def __init__(self, conn_socket, addr_port):
+        super().__init__(conn_socket, addr_port)
+        self.meetingType = MESH
 
 
 #######################################################
@@ -115,17 +121,13 @@ class Server:
         
         Once a client connects, they
         can make some requests (in a new thread)
-        and then eventually disconnect. If clients don't disconnect
-        on their own, they will be kicked 
+        and then eventually disconnect. 
         """
 
         server_socket = socket(AF_INET, SOCK_STREAM)
-        server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # 
-        # server_socket.bind(('localhost', SERVER_PORT))
+        server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # FOR DEBUGGING
         server_socket.bind(('', SERVER_PORT))
-        # server_socket.listen(MAX_QUEUED_REQUESTS)
         server_socket.listen()
-
 
         while True:
             connection_socket, addr_port = server_socket.accept()
@@ -145,9 +147,7 @@ class Server:
         return ListenThread(MeetingRequest,   \
                              connection_socket, \
                              lambda req: self.handle_request(req, connection_socket, addr_port), \
-                             lambda: print("Client closed connection."), \
-                             keep_alive_sec = 5 * 60 \
-                             )
+                             lambda: print("Client closed connection."))
 
     def send_response(self, response_obj, conn_socket):
         """ 
@@ -158,6 +158,42 @@ class Server:
         else:
             print("Error: Cannot send invalid ServerResponse object: ", response_obj)
 
+    def delete_meeting_entry(self, meetingID):
+        """
+        Delete a MeetingEntry object in self.meetings
+        """
+        if meetingID in self.meetings:
+            self.meetings[meetingID].conn_socket.close()
+            del self.meetings[meetingID]
+
+    def get_listing(self):
+        """
+        Go through list of meetings and return 
+        list of ongoing meetings (prune those that have ended).
+        """
+        meeting_list = []
+        to_delete = []
+        for meetingID in self.meetings: 
+            meeting_entry = self.meetings[meetingID]
+
+            # check if socket is still open by sending test data
+            try:
+                # sending one messages usually fails to raise exception 
+                # immediately, so send two
+                meeting_entry.conn_socket.send(TEST_MESSAGE.encode())
+                meeting_entry.conn_socket.send(TEST_MESSAGE.encode())
+            except:
+                to_delete.append(meetingID)
+                continue
+
+            meeting_list.append((meetingID, meeting_entry.meetingType))
+
+        # delete entries after iterating 
+        for meetingID in to_delete:
+            self.delete_meeting_entry(meetingID)
+
+        return meeting_list
+
     def handle_request(self, mtng_request, conn_socket, addr_port):
         """ 
         mtng_request - MeetingRequest object
@@ -165,12 +201,8 @@ class Server:
         addr_port - ip address and port for socket connection from client to server... 
         """
         if mtng_request.type == LIST:
-            # TODO LIST COMMAND<S-F7> SHOULD<S-F7> CHECK 
-            # WHETHER MEETINGS ARE OPEN !!!!!!!!!!!!!!!!!!!!!!!!11
-            # at least whether hosts are still connected. 
-
             # create new response with list of meeting ids
-            response = ListResponse(list(self.meetings.keys()))
+            response = ListResponse(self.get_listing())
 
         elif mtng_request.type == JOIN:
             if mtng_request.data.meetingID in self.meetings:
@@ -214,11 +246,11 @@ class Server:
             # this meeting in the future 
             if mtng_request.data.meetingType == STAR:
                 response = CreateStarSuccess(meetingID, p2p_port)
-                self.meetings[meetingID] = StarMeetingEntry((addr_port[0], p2p_port))
+                self.meetings[meetingID] = StarMeetingEntry(conn_socket, (addr_port[0], p2p_port))
 
             if mtng_request.data.meetingType == MESH:
                 response = CreateMeshSuccess(meetingID, p2p_port)
-                self.meetings[meetingID] = MeshMeetingEntry((addr_port[0], p2p_port))
+                self.meetings[meetingID] = MeshMeetingEntry(conn_socket, (addr_port[0], p2p_port))
 
         # send response to requesting client 
         self.send_response(response, conn_socket)

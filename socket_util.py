@@ -1,7 +1,7 @@
 import traceback
 import threading
 from constants import * 
-from server_requests import * 
+from server_messages import * 
 
 def connect_to_peer(addr_port):
     """
@@ -45,17 +45,14 @@ def send_socket_message(conn_socket, msg_object):
     """
     if isinstance(msg_object, SocketMessage):
         safe_send(conn_socket, msg_object.encode())
-    else:
-        print("Error: Second argument is not instance of SocketMessage")
-        traceback.print_stack()
+        return
+
+    print("Error: Second argument is not instance of SocketMessage: ", msg_object)
+    traceback.print_stack()
 
 
 
 class ListenThread:
-# [-] need abstraction for "listen to messages from this socket
-#     in a separate thread until the socket is closed, 
-#     and when you get a message mbytes, perform f(mbytes)"
-
     """
     ListenThread is an abstraction for the process of 
     looping continuously to listen and respond to messages on a socket.
@@ -165,7 +162,6 @@ class ListenThread:
                     message_dict = json.loads(message_str)
                 except:
                     # couldn't parse as dictionary, ignore it
-                    print("Received non-dictionary message:", message_str)
                     continue
                 
                 # use MessageType constructor and check if 
@@ -182,8 +178,6 @@ class ListenThread:
                         print("Failed to process message: ", e)
                         traceback.print_exc()
         
-        # print("DEBUG: Loop terminated because keep-alive set to False")
-
         # if while loop exited, still perform cleanup function
         # and close socket
         self.conn_socket.close()

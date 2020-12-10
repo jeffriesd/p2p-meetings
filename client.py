@@ -1,5 +1,5 @@
-RegisterPort(p2p_port))from socket import *
-from server_requests import * 
+from socket import *
+from server_messages import * 
 from constants import * 
 import threading
 import json
@@ -16,29 +16,6 @@ from p2p_nodes import *
 ######################################################
 ######################################################
                                                      
-                                                     
-# also implement CLI -- reading user commands one line at a time
-#
-# once meeting is joined, entering a line just sends it as a message
-# type !exit to leave or something. 
-
-
-
-## def listen_thread(conn_socket, handle_message, on_close):
-##     """
-##     Return a thread that will listen to a socket 
-##     and process incoming messages. 
-## 
-##     conn_socket - socket object to listen to 
-##     handle_message - function to be called when a message 
-##                 is received and parsed. Takes a message
-##                 in dictionary form as its single argument. 
-##     on_close - 0-ary function to be called when socket is closed.
-##             This function might perform some cleanup, such as removing
-##             the socket from a list of active connections 
-##     """
-##     listen_func = lambda: listen_and_do(conn_socket, handle_message, on_close)
-##     return threading.Thread(target=listen_func)
 
 class Client:
 
@@ -118,13 +95,6 @@ class Client:
                     p2p_port = response_obj.data.p2p_port
                     self.aud = MeshAudienceNode(username, host_addr, host_port, p2p_port)
 
-                # TODO maybe keep connection open in case 
-                # meeting closes and user wants to 
-                # go back to the "waiting room"
-                #
-                # # disconnect from central server
-                # self.disconnect_from_server()
-
             else:
                 print("Join request failed: ", response_obj.message)
 
@@ -144,15 +114,12 @@ class Client:
                 if response_obj.data.meetingType == MESH:
                     self.host = MeshHostNode(HOST_USERNAME, response_obj.data.meetingID, meeting_port)
 
-                # # TODO maybe keep connection alive.. 
-                # self.disconnect_from_server()
-
             else:
                 print("Create request failed: ", response_obj.message)
 
         if response_obj.type == LIST:
             if response_obj.success:
-                print("Client action: Got 'list' response from server:", response_obj.data)
+                print("Available meetings (ID/type) : ", response_obj.data)
             else:
                 print("List request failed: ", response_obj.message)
 

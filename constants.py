@@ -1,6 +1,5 @@
 import json 
 import threading
-import time
 
 # AWS 
 SERVER_IP = "3.132.213.19"

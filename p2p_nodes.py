@@ -92,7 +92,6 @@ class HostNode:
 
         while True:
             connection_socket, addr_port = accept_socket.accept()
-            # DEBUG print("Host: received a new connection request from ", addr_port)
 
             # tell new peer our username
             send_socket_message(connection_socket, RegisterUsername(self.username))
@@ -172,7 +171,6 @@ class HostNode:
         peer is still connected.
         """
         if addr_port in self.peers:
-            print("get username for ", addr_port, " = ", self.peers[addr_port].username)
             return self.peers[addr_port].username
 
         return self.unknown_peer_error(addr_port)
@@ -335,7 +333,6 @@ class MeshAudienceNode(HostNode):
             print("%s says: %s" % (peer_username, message_obj.message))
 
         elif message_obj.type == P2P_REGISTER_USERNAME:
-            print("set username of ", addr_port, "to " , message_obj.data.username) #DEBUG
             # update username of this peer
             self.set_username(addr_port, message_obj.data.username)
 
@@ -405,7 +402,6 @@ class MeshHostNode(HostNode):
 
         while True:
             connection_socket, addr_port = accept_socket.accept()
-            # DEBUG print("Host: received a new connection request from ", addr_port)
 
             # tell new peer our username
             send_socket_message(connection_socket, RegisterUsername(HOST_USERNAME))

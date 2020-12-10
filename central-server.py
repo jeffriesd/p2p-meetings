@@ -182,7 +182,8 @@ class Server:
                 # sending one messages usually fails to raise exception 
                 # immediately, so send two
                 meeting_entry.conn_socket.send(TEST_MESSAGE.encode())
-                time.sleep(1)
+                # wait for a few milliseconds 
+                time.sleep(0.1)
                 meeting_entry.conn_socket.send(TEST_MESSAGE.encode())
             except:
                 to_delete.append(meetingID)

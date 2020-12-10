@@ -171,6 +171,7 @@ class HostNode:
         Safely get username by checking first if 
         peer is still connected.
         """
+        print("get username for ", addr_port)
         if addr_port in self.peers:
             return self.peers[addr_port].username
 

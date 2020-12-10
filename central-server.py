@@ -1,4 +1,5 @@
 import json
+import time
 from socket import * 
 import threading 
 from server_messages import * 
@@ -181,6 +182,7 @@ class Server:
                 # sending one messages usually fails to raise exception 
                 # immediately, so send two
                 meeting_entry.conn_socket.send(TEST_MESSAGE.encode())
+                time.sleep(1)
                 meeting_entry.conn_socket.send(TEST_MESSAGE.encode())
             except:
                 to_delete.append(meetingID)

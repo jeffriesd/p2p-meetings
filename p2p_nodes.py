@@ -335,6 +335,7 @@ class MeshAudienceNode(HostNode):
             print("%s says: %s" % (peer_username, message_obj.message))
 
         elif message_obj.type == P2P_REGISTER_USERNAME:
+            print("set username of ", addr_port, "to " , message_obj.data.username) #DEBUG
             # update username of this peer
             self.set_username(addr_port, message_obj.data.username)
 

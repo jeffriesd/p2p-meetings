@@ -126,7 +126,7 @@ class Server:
         """
 
         server_socket = socket(AF_INET, SOCK_STREAM)
-        server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # FOR DEBUGGING
+        server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) 
         server_socket.bind(('', SERVER_PORT))
         server_socket.listen()
 

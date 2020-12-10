@@ -10,28 +10,42 @@ from server_messages import *
 # adapted from the textbook for creating new tcp connections. 
 #
 # This file implements the peer classes for the star-shaped 
-# topology. There are two types of nodes in this topology, 
-# the host (central) node and client nodes. 
-# In this implementation the host can send messages 
-# directly to a particular client, broadcast messages to 
-# every client, and receive messages ("questions") from individuals. 
-
-# Maintain a list of 'bad words' 
-# that we will use to filter 
-# questions from meeting attendees.
-# If their question contains no 'bad words',
-# then it will be broadcast to the entire meeting. 
-#
-# if a user uses 'bad words' three times, they are 
-# kicked out of the meeting
+# topology and the full-mesh toplogy. 
 #
 #
-# TODO complete description of Mesh meetings etc. 
+# Star-shaped topology:
+#       There are two types of nodes in this topology, 
+#       the host (central) node and 'audience' or 'client' nodes. 
+#       In this implementation the host can send messages 
+#       directly to a particular client, broadcast messages to 
+#       every client, and receive messages ("questions") from individuals. 
+#       Maintain a list of 'bad words' 
+#       that we will use to filter 
+#       questions from meeting attendees.
+#       If their question contains no 'bad words',
+#       then it will be broadcast to the entire meeting. 
+#
+#       if a user uses 'bad words' three times, they are 
+#       kicked out of the meeting
+#
+#
+# Full-mesh topology:
+#       There are also two types of nodes for the full-mesh topology,
+#       but they are closer in behavior than the host/audience nodes in the  
+#       star-shaped networks. 
+#
+#       The host is responsible for keeping track of all the peers
+#       and sending a list of peer addresses when a new 
+#       peer wants to join. Other than this, the host does not
+#       have an centralized control over the network
+#       like the StarHost does (e.g., StarHost can kick people out).
+#
+#       Peers in the full-mesh network can broadcast messages
+#       to the entire network, or send a private message to a particular user. 
+#
 
 
 
-###############################################################
-###############################################################
 class PeerInfo:
     """
     PeerInfo keeps track of 
@@ -377,7 +391,6 @@ class MeshHostNode(HostNode):
 
     Non-host nodes are responsible for creating the tcp connection
     from the host to themselves. 
-
 
     If the host leaves the meeting, then it will no longer 
     be listed by the server and so other users can no longer join. 

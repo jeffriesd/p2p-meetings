@@ -5,7 +5,7 @@ from constants import *
 ##########################################################
 ##  wrap up request data in a class for abstraction     ##
 ##  purposes, but make it easy to convert a dictionary  ##
-##  into MeetingRequest object and vice versa.          ##
+##  into SocketMessage object and vice versa.           ##
 ##########################################################
 
 
@@ -147,20 +147,6 @@ class JoinRequest(MeetingRequest):
         self.type = JOIN
         self.data = { "meetingID" : meeting_id , "username" : username}
 
-# class JoinStarRequest(MeetingRequest):
-#     def __init__(self, meeting_id):
-#         super().__init__()
-#         self.type = JOIN
-#         self.data = { "meetingType" : STAR ,
-#                       "meetingID" : meeting_id }
-# 
-# class JoinMeshRequest(MeetingRequest):
-#     def __init__(self, meeting_id):
-#         super().__init__()
-#         self.type = JOIN
-#         self.data = { "meetingType" : MESH , 
-#                       "meetingID" : meeting_id }
-
 class CreateMeshRequest(MeetingRequest):
     def __init__(self):
         super().__init__()
@@ -288,6 +274,8 @@ class CreateMeshSuccess(ServerResponse):
 
 
 #######################################################
+
+# messages between nodes in p2p network (not client/server)
 
 P2P_MESSAGE_FIELDS = ["type", "message", "data"]
 P2P_TEXT   = "p2p_text" # normal text message between nodes 

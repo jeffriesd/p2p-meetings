@@ -20,7 +20,6 @@ def connect_to_peer(addr_port):
         # thread to listen to messages from this user
         conn_socket.connect(addr_port)
 
-        # DEBUG print("Connected successfully to peer ", addr_port)
         return conn_socket
     except Exception as e:
         conn_socket.close()

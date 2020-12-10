@@ -365,7 +365,6 @@ class MeshAudienceNode(HostNode):
                 self.add_new_peer(conn_socket, addr_port)
 
                 # also broadcast username to these peers
-                print("my username is ", self.username) #DEBUG
                 send_socket_message(conn_socket, RegisterUsername(self.username))
 
                 # send connection message

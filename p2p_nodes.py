@@ -266,12 +266,6 @@ class HostNode:
 
 
 
-class StarHostNode(HostNode):
-    """
-    StarHostNode has all the same behavior as HostNode
-    """
-    pass
-
 
 #######################################################
 #######################################################
@@ -503,6 +497,9 @@ class StarHostNode(HostNode):
             self.set_username(addr_port, message_obj.data.username)
 
         elif message_obj.type == P2P_MESH_CONNECT:
+            # star host shouldn't be receiving this, so ignore it
+            pass
+        elif message_obj.type == P2P_REGISTER_PORT:
             # star host shouldn't be receiving this, so ignore it
             pass
         else:

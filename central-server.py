@@ -131,10 +131,6 @@ class Server:
             connection_socket, addr_port = server_socket.accept()
             print("Central server: got a new connection from ", addr_port)
 
-            connection_msg = "You are connected to the central server."
-            connection_socket.send(connection_msg.encode())
-
-
             # listen for requests from this client in a separate thread
             # so other clients can connect simultaneously
             request_thread = self.make_request_thread(connection_socket, addr_port)

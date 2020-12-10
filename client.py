@@ -1,9 +1,9 @@
-from socket import *
+RegisterPort(p2p_port))from socket import *
 from server_requests import * 
 from constants import * 
 import threading
 import json
-from star_client import *
+from p2p_nodes import *
 
 ######################################################
 ######################################################
@@ -108,9 +108,7 @@ class Client:
                 # Join a star-shaped meeting, so just connect
                 # with the host. 
                 if response_obj.data.meetingType == STAR:
-
-                    # TODO wrap this with try/except (meeting may have closed)
-                    self.aud = AudienceNode(username, host_addr, host_port)
+                    self.aud = StarAudienceNode(username, host_addr, host_port)
 
                 # Join a full-mesh meeting, new tcp 
                 # connections will be created between the 
@@ -136,22 +134,15 @@ class Client:
         # request to join, a p2p network will be built up 
         if response_obj.type == CREATE:
             if response_obj.success:
-                print("Client action: Create new room with meeting ID", response_obj.data.meetingID)
-
                 meeting_port = response_obj.data.p2p_port
 
                 # create a meeting with star-shaped network topology
                 if response_obj.data.meetingType == STAR:
-                    host_username = "starhost-%s" % response_obj.data.meetingID
-                    # TODO wrap this in try/except in case it fails 
-                    #
-                    self.host = StarHostNode(host_username, meeting_port)
+                    self.host = StarHostNode(HOST_USERNAME, response_obj.data.meetingID, meeting_port)
 
                 # create a meeting with full-mesh network topology
                 if response_obj.data.meetingType == MESH:
-                    host_username = "meshhost-%s" % response_obj.data.meetingID
-                    # TODO wrap this in try/except in case it fails 
-                    self.host = MeshHostNode(host_username, meeting_port)
+                    self.host = MeshHostNode(HOST_USERNAME, response_obj.data.meetingID, meeting_port)
 
                 # # TODO maybe keep connection alive.. 
                 # self.disconnect_from_server()

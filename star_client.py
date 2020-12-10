@@ -256,6 +256,9 @@ class HostNode:
         Create a new peer connection object and add
         it to self.peers. First check if this peer is already connected. 
         """
+        if type(addr_port) is list:
+            addr_port = tuple(addr_port)
+            
         if addr_port in self.peers:
             print("Error: Already have peer connection with " , addr_port)
             return

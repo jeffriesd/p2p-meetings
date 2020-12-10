@@ -85,7 +85,7 @@ class Client:
                 # Join a star-shaped meeting, so just connect
                 # with the host. 
                 if response_obj.data.meetingType == STAR:
-                    self.aud = StarAudienceNode(username, host_addr, host_port)
+                    self.node = StarAudienceNode(username, host_addr, host_port)
 
                 # Join a full-mesh meeting, new tcp 
                 # connections will be created between the 
@@ -93,7 +93,7 @@ class Client:
                 elif response_obj.data.meetingType == MESH:
                     # server should have assigned us a unique p2p port
                     p2p_port = response_obj.data.p2p_port
-                    self.aud = MeshAudienceNode(username, host_addr, host_port, p2p_port)
+                    self.node = MeshAudienceNode(username, host_addr, host_port, p2p_port)
 
             else:
                 print("Join request failed: ", response_obj.message)
@@ -108,11 +108,11 @@ class Client:
 
                 # create a meeting with star-shaped network topology
                 if response_obj.data.meetingType == STAR:
-                    self.host = StarHostNode(HOST_USERNAME, response_obj.data.meetingID, meeting_port)
+                    self.node = StarHostNode(HOST_USERNAME, response_obj.data.meetingID, meeting_port)
 
                 # create a meeting with full-mesh network topology
                 if response_obj.data.meetingType == MESH:
-                    self.host = MeshHostNode(HOST_USERNAME, response_obj.data.meetingID, meeting_port)
+                    self.node = MeshHostNode(HOST_USERNAME, response_obj.data.meetingID, meeting_port)
 
             else:
                 print("Create request failed: ", response_obj.message)

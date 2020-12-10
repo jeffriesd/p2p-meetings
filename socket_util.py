@@ -43,9 +43,6 @@ def send_socket_message(conn_socket, msg_object):
     instance check to ensure msg_object is an instance
     of SocketMessage
     """
-    if isinstance(msg_object, RegisterUsername):
-        traceback.print_stack()
-
     if isinstance(msg_object, SocketMessage):
         safe_send(conn_socket, msg_object.encode())
         return

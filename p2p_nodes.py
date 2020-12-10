@@ -95,7 +95,7 @@ class HostNode:
             # DEBUG print("Host: received a new connection request from ", addr_port)
 
             # tell new peer our username
-            send_socket_message(connection_socket, RegisterUsername(HOST_USERNAME))
+            send_socket_message(connection_socket, RegisterUsername(self.username))
 
             welcome_message = P2PText(self.welcome_message())
             send_socket_message(connection_socket, welcome_message)

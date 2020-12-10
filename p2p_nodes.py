@@ -171,8 +171,8 @@ class HostNode:
         Safely get username by checking first if 
         peer is still connected.
         """
-        print("get username for ", addr_port)
         if addr_port in self.peers:
+            print("get username for ", addr_port, " = ", self.peers[addr_port].username)
             return self.peers[addr_port].username
 
         return self.unknown_peer_error(addr_port)
@@ -364,7 +364,7 @@ class MeshAudienceNode(HostNode):
                 self.add_new_peer(conn_socket, addr_port)
 
                 # also broadcast username to these peers
-                print("my username is ", self.username)
+                print("my username is ", self.username) #DEBUG
                 send_socket_message(conn_socket, RegisterUsername(self.username))
 
                 # send connection message

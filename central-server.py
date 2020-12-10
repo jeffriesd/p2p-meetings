@@ -213,7 +213,7 @@ class Server:
                 if meeting_entry.has_username(requested_username) or \
                     requested_username in [HOST_USERNAME, DEFAULT_USERNAME]:
 
-                    response = JoinFailure("Username '%s' already taken. Please choose another.")
+                    response = JoinFailure("Username '%s' already taken. Please choose another." % requested_username)
                 else:
                     # add new username to record for this meeting 
                     meeting_entry.add_username(requested_username)

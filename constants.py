@@ -8,7 +8,7 @@ DEFAULT_USERNAME = "default_user"
 HOST_USERNAME = "HOST"
 
 SERVER_PORT = 40
-DEFAULT_P2P_PORT = 2600
+DEFAULT_P2P_PORT = 2700
 
 # list of disallowed words for star-shaped meetings
 BAD_WORDS = ["xxx", "yyy", "zzz"]

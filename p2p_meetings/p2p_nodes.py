@@ -1,8 +1,8 @@
 from socket import *
 import threading
-from constants import * 
-from socket_util import * 
-from server_messages import * 
+from p2p_meetings.constants import * 
+from p2p_meetings.socket_util import * 
+from p2p_meetings.server_messages import * 
 
 # Author: Daniel Jeffries
 #
@@ -222,7 +222,8 @@ class HostNode:
             peer.listen_thread.stop()
 
             # close socket connection
-            peer.conn_socket.close()
+            ##  peer.conn_socket.close()
+            safe_shutdown_close(peer.conn_socket)
             del self.peers[addr_port]
         else:
             print(self.unknown_peer_error(addr_port), "for remove_user")

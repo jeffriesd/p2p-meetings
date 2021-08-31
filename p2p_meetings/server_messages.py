@@ -1,6 +1,6 @@
 import json
 from socket import * 
-from constants import * 
+from p2p_meetings.constants import * 
 
 ##########################################################
 ##  wrap up request data in a class for abstraction     ##
@@ -17,7 +17,6 @@ REQUEST_TYPES = [LIST, JOIN, CREATE]
 STAR = "star"
 MESH = "mesh"
 MEETING_TYPES = [STAR, MESH]
-
 
 # valid fields of application messages 
 DATA_FIELDS = [

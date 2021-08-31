@@ -2,9 +2,9 @@ import json
 import time
 from socket import * 
 import threading 
-from server_messages import * 
-from constants import * 
-from socket_util import * 
+from p2p_meetings.server_messages import * 
+from p2p_meetings.constants import * 
+from p2p_meetings.socket_util import * 
 
 
 class MeetingEntry:
@@ -28,9 +28,6 @@ class MeetingEntry:
 
         # set of ports used in this p2p network
         self.meeting_ports = set()
-
-    def has_port(self, port):
-        return port in self.ports
 
     def add_port(self, port):
         self.meeting_ports.add(port)
@@ -61,12 +58,10 @@ class MeshMeetingEntry(MeetingEntry):
 
 class Server:
     """
-    This class implements the functions used 
-    by the central server. The server's role is
-    to maintain a directory of ongoing meetings,
-    mapping meeting IDs to the IP addresses/port 
-    of the host(s). 
-
+    This class implements the central server. 
+    The server's role is to maintain a directory 
+    of ongoing meetings, mapping meeting IDs to 
+    the IP addresses/port of the host(s). 
 
     The server handles three types of requests:
     - List meetings
@@ -75,8 +70,6 @@ class Server:
     """
 
     def __init__(self):
-
-
         # map meetingID to MeetingEntry
         # objects 
         self.meetings = {} 
@@ -87,8 +80,34 @@ class Server:
         self._unique_meeting_port = DEFAULT_P2P_PORT
         self._unique_meeting_port_lock = threading.Lock()
 
-        self.connection_thread = threading.Thread(target=self.wait_for_connections)
+        # flag to keep looping in self.wait_for_connections 
+        self.keep_accepting_connections = True
+
+        # keep list of client sockets so they can be closed
+        self.client_sockets = [] 
+
+        self.connection_socket = None
+        self.connection_thread = \
+                threading.Thread(target=self.wait_for_connections)
         self.connection_thread.start()
+
+    def stop_server(self):
+        """
+        Stop accepting connections and close the 
+        socket used to listen for new connection requests. 
+
+        Also close all client sockets. 
+        """
+        self.keep_accepting_connections = False
+
+        if self.connection_socket:
+            # shutdown and close socket
+            safe_shutdown_close(self.connection_socket)
+
+        # print("socks to close =", self.client_sockets)
+        for sock in self.client_sockets:
+            print("server: close sock", sock.getsockname(), sock.getpeername())
+            safe_shutdown_close(sock)
 
     def new_meetingID(self):
         """
@@ -125,30 +144,39 @@ class Server:
         and then eventually disconnect. 
         """
 
-        server_socket = socket(AF_INET, SOCK_STREAM)
-        server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) 
-        server_socket.bind(('', SERVER_PORT))
-        server_socket.listen()
+        self.connection_socket = socket(AF_INET, SOCK_STREAM)
+        self.connection_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) 
+        self.connection_socket.bind(('', SERVER_PORT))
+        self.connection_socket.listen()
 
-        while True:
-            connection_socket, addr_port = server_socket.accept()
-            print("Central server: got a new connection from ", addr_port)
+        while self.keep_accepting_connections:
+            try: # socket may be closed after loop is entered 
+                client_socket, addr_port = self.connection_socket.accept()
+                print_to_server_log("Central server: got a new connection from ", addr_port)
 
-            # listen for requests from this client in a separate thread
-            # so other clients can connect simultaneously
-            request_thread = self.make_request_thread(connection_socket, addr_port)
-            request_thread.start()
+                self.client_sockets.append(client_socket)
 
-    def make_request_thread(self, connection_socket, addr_port):
+                # listen for requests from this client in a separate thread
+                # so other clients can connect simultaneously
+                request_thread = self.make_request_thread(client_socket, addr_port)
+                request_thread.start()
+            except:
+                pass
+
+    def make_request_thread(self, client_socket, addr_port):
         """
+        Create a new ListenThread object to listen for 
+        requests from a client. 
+
         Can't inline this above, or else binding issues arise
-        since connection_socket and addr_port get reassigned every
+        since client_socket and addr_port get reassigned every
         iteration of the while loop. 
         """
+        sock_name = client_socket.getsockname()
         return ListenThread(MeetingRequest,   \
-                             connection_socket, \
-                             lambda req: self.handle_request(req, connection_socket, addr_port), \
-                             lambda: print("Client closed connection."))
+                             client_socket, \
+                             lambda req: self.handle_request(req, client_socket, addr_port), \
+                             lambda: print_to_server_log(f"Client {sock_name} closed connection."))
 
     def send_response(self, response_obj, conn_socket):
         """ 
@@ -157,14 +185,15 @@ class Server:
         if response_obj.is_valid():
             safe_send(conn_socket, response_obj.encode())
         else:
-            print("Error: Cannot send invalid ServerResponse object: ", response_obj)
+            print_to_server_log("Error: Cannot send invalid ServerResponse object: ", response_obj)
 
     def delete_meeting_entry(self, meetingID):
         """
         Delete a MeetingEntry object in self.meetings
         """
         if meetingID in self.meetings:
-            self.meetings[meetingID].conn_socket.close()
+            # self.meetings[meetingID].conn_socket.close()
+            safe_shutdown_close(self.meetings[meetingID].conn_socket)
             del self.meetings[meetingID]
 
     def get_listing(self):
@@ -203,6 +232,9 @@ class Server:
 
         addr_port - ip address and port for socket connection from client to server... 
         """
+
+        # TODO use is_valid() and send error response if invalid 
+
         if mtng_request.type == LIST:
             # create new response with list of meeting ids
             response = ListResponse(self.get_listing())
@@ -258,7 +290,3 @@ class Server:
         # send response to requesting client 
         self.send_response(response, conn_socket)
 
-
-
-print("Starting server...")
-Server()

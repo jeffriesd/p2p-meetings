@@ -1,7 +1,23 @@
 import traceback
 import threading
-from constants import * 
-from server_messages import * 
+from p2p_meetings.constants import * 
+from p2p_meetings.server_messages import * 
+
+
+def safe_shutdown_close(socket):
+    """
+    Shutdown and close a socket. 
+    This function ensures no exceptions are 
+    raised (e.g., because the socket has already been closed).
+    """
+    try:
+        # shutdown socket, disallowing further 
+        # sends or receives 
+        socket.shutdown(SHUT_RDWR)
+        # close socket
+        socket.close()
+    except:
+        pass
 
 def connect_to_peer(addr_port):
     """
@@ -15,14 +31,14 @@ def connect_to_peer(addr_port):
         addr_port = tuple(addr_port)
 
     try:
-        # connecting to another mesh peer P will cause 
+        # connecting to another mesh will cause 
         # P to add a new entry to P.peers and create a new
         # thread to listen to messages from this user
         conn_socket.connect(addr_port)
 
         return conn_socket
     except Exception as e:
-        conn_socket.close()
+        safe_shutdown_close(conn_socket)
         print("Connection with meeting host failed: ", addr_port, e)
         traceback.print_stack()
         return None
@@ -179,7 +195,7 @@ class ListenThread:
         
         # if while loop exited, still perform cleanup function
         # and close socket
-        self.conn_socket.close()
+        safe_shutdown_close(self.conn_socket)
 
         self.on_close()
 

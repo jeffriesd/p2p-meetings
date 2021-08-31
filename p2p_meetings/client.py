@@ -1,9 +1,9 @@
 from socket import *
-from server_messages import * 
-from constants import * 
+from p2p_meetings.server_messages import * 
+from p2p_meetings.constants import * 
 import threading
 import json
-from p2p_nodes import *
+from p2p_meetings.p2p_nodes import *
 
 ######################################################
 ######################################################

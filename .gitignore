@@ -1,0 +1,14 @@
+**/__pycache__
+*.pyc
+*.swp
+
+# log files 
+*.log
+
+
+# AWS key files 
+*.pem 
+
+# whiteboard notes 
+*.xopp
+

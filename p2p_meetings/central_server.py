@@ -2,11 +2,12 @@ import json
 import time
 from socket import * 
 import threading 
+import logging 
 from p2p_meetings.server_messages import * 
 from p2p_meetings.constants import * 
 from p2p_meetings.socket_util import * 
 
-import logging 
+
 
 class MeetingEntry:
     """

@@ -2,7 +2,7 @@ from socket import *
 import threading
 from p2p_meetings.constants import * 
 from p2p_meetings.socket_util import * 
-from p2p_meetings.server_messages import * 
+from p2p_meetings.message_types import * 
 
 # Author: Daniel Jeffries
 #

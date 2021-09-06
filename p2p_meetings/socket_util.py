@@ -2,7 +2,7 @@ import traceback
 import logging
 import threading
 from p2p_meetings.constants import * 
-from p2p_meetings.server_messages import * 
+from p2p_meetings.message_types import * 
 
 
 def safe_shutdown_close(socket):

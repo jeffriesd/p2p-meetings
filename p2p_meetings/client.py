@@ -1,5 +1,5 @@
 from socket import *
-from p2p_meetings.server_messages import * 
+from p2p_meetings.message_types import * 
 from p2p_meetings.constants import * 
 import threading
 import json

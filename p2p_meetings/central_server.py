@@ -265,9 +265,9 @@ class Server:
                         response = JoinStarSuccess(meeting_entry.host_addr_port, requested_username)
                     elif isinstance(meeting_entry, MeshMeetingEntry):
                         # must assign unique port to new mesh peer
-                        meeting_port = self.new_meeting_port()
+                        listen_p2p_port = self.new_meeting_port()
 
-                        response = JoinMeshSuccess(meeting_entry.host_addr_port, requested_username, meeting_port)
+                        response = JoinMeshSuccess(meeting_entry.host_addr_port, requested_username, listen_p2p_port)
                     else:
                         response = JoinFailure("Meeting ID '%s' has wrong type." % mtng_request.data.meetingID)
             else:

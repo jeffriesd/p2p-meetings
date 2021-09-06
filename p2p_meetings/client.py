@@ -77,7 +77,7 @@ class Client:
         response_obj - valid ServerResponse object
         """
         if response_obj.type == JOIN:
-
+            # client attempts to join new p2p network 
 
             if response_obj.success:
                 host_addr, host_port = response_obj.data.host
@@ -93,8 +93,8 @@ class Client:
                 # joining user and all other nodes in the mesh network. 
                 elif response_obj.data.meetingType == MESH:
                     # server should have assigned us a unique p2p port
-                    p2p_port = response_obj.data.p2p_port
-                    self.node = MeshAudienceNode(username, host_addr, host_port, p2p_port)
+                    listen_p2p_port = response_obj.data.listen_p2p_port
+                    self.node = MeshAudienceNode(username, host_addr, host_port, listen_p2p_port)
 
             else:
                 logging.info("Join request failed: %s", str(response_obj.message))
@@ -105,15 +105,15 @@ class Client:
         # request to join, a p2p network will be built up 
         if response_obj.type == CREATE:
             if response_obj.success:
-                meeting_port = response_obj.data.p2p_port
+                listen_p2p_port = response_obj.data.listen_p2p_port
 
                 # create a meeting with star-shaped network topology
                 if response_obj.data.meetingType == STAR:
-                    self.node = StarHostNode(HOST_USERNAME, response_obj.data.meetingID, meeting_port)
+                    self.node = StarHostNode(HOST_USERNAME, response_obj.data.meetingID, listen_p2p_port)
 
                 # create a meeting with full-mesh network topology
                 if response_obj.data.meetingType == MESH:
-                    self.node = MeshHostNode(HOST_USERNAME, response_obj.data.meetingID, meeting_port)
+                    self.node = MeshHostNode(HOST_USERNAME, response_obj.data.meetingID, listen_p2p_port)
 
             else:
                 logging.info("Create request failed: %s", str(response_obj.message))

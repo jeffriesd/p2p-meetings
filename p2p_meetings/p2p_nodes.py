@@ -12,7 +12,6 @@ from p2p_meetings.message_types import *
 # This file implements the peer classes for the star-shaped 
 # topology and the full-mesh toplogy. 
 #
-#
 # Star-shaped topology:
 #       There are two types of nodes in this topology, 
 #       the host (central) node and 'audience' or 'client' nodes. 
@@ -45,7 +44,6 @@ from p2p_meetings.message_types import *
 #
 
 
-
 class PeerInfo:
     """
     PeerInfo keeps track of 
@@ -54,16 +52,14 @@ class PeerInfo:
     such as username, warnings, etc. 
     """
 
-    def __init__(self, conn_socket, listen_thread, listening_port, username=DEFAULT_USERNAME):
+    def __init__(self, conn_socket, listen_thread, listen_p2p_port, username=DEFAULT_USERNAME):
         self.conn_socket = conn_socket
         self.user_warnings = 0
         self.username = username
 
         self.listen_thread = listen_thread
 
-        self.listening_port = listening_port
-
-        self.p2p_port = None
+        self.listen_p2p_port = listen_p2p_port
 
 class HostNode:
     """
@@ -75,7 +71,7 @@ class HostNode:
     full-mesh host nodes. 
     """
 
-    def __init__(self, username, meetingID, p2p_port):
+    def __init__(self, username, meetingID, listen_p2p_port):
         self.username = username
         self.meetingID = meetingID
 
@@ -87,7 +83,7 @@ class HostNode:
 
         # this is the port used for incoming traffic 
         # to this node 
-        self.p2p_port = p2p_port
+        self.listen_p2p_port = listen_p2p_port
 
         # wait for connections in a separate thread
         self.connection_thread = threading.Thread(target=self.wait_for_connections)
@@ -100,11 +96,13 @@ class HostNode:
         """
         accept_socket = socket(AF_INET, SOCK_STREAM)
         # accept_socket.bind(('', P2P_PORT))
-        accept_socket.bind(('', self.p2p_port))
+        accept_socket.bind(('', self.listen_p2p_port))
         accept_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # FOR DEBUGGING
         accept_socket.listen()
 
         while True:
+            # addr_port is address and port 
+            # of newly connected peer 
             connection_socket, addr_port = accept_socket.accept()
 
             # tell new peer our username
@@ -113,9 +111,11 @@ class HostNode:
             welcome_message = P2PText(self.welcome_message())
             send_socket_message(connection_socket, welcome_message)
 
+            # host node adds new peer, no username established yet
             self.add_new_peer(connection_socket, addr_port)
 
     def welcome_message(self):
+        """Message to send every time a peer joins a network"""
         return "You are connected to host of meeting %s." % self.meetingID
 
     def add_new_peer(self, connection_socket, addr_port, username=DEFAULT_USERNAME):
@@ -134,7 +134,8 @@ class HostNode:
         listen_thread = self.make_listen_thread(connection_socket, addr_port)
 
         # assign default username 
-        self.peers[addr_port] = PeerInfo(connection_socket, listen_thread, username)
+        self.peers[addr_port] = \
+            PeerInfo(connection_socket, listen_thread, addr_port, username=username)
         self.peers[addr_port].listen_thread.start()
 
 
@@ -160,12 +161,12 @@ class HostNode:
         """
         logging.error("Error: Unknown peer - %s - %s", addr_port, msg)
 
-    def set_p2p_port(self, addr_port, p2p_port):
+    def set_p2p_port(self, addr_port, listen_p2p_port):
         """
         Safely set p2p port for a peer. 
         """
         if addr_port in self.peers:
-            self.peers[addr_port].p2p_port = p2p_port
+            self.peers[addr_port].listen_p2p_port = listen_p2p_port
         else:
             self.unknown_peer_error(addr_port, "for set_p2p_port")
 
@@ -297,15 +298,42 @@ class MeshAudienceNode(HostNode):
 
     MeshAudienceNode always broadcasts its preferred 
     username to all peers when sending these connection requests.
+
+    For a client to join a mesh network, the following steps must occur: 
+    - client makes request to join (gives meeting room # and username)
+    - server receives request, if requested meeting room exists and 
+      requested username is not taken, server responds with address/port of host 
+    - client receives response which contains: 
+      - addr/port of requested p2p meeting host 
+      - requested username 
+      - type of meeting requested 
+      - if joining mesh, a unique port (assigned by central server) 
+        on which the client can listen for new connections by future clients 
+        joining the same mesh. 
+
+    - once client receives response, it 
+      creates new Mesh/StarAudienceNode object, 
+      which causes it to connect to the host 
+    - client sends host its username and a welcome/connection message. 
+
+    - in mesh case, newly joining client 
+      also sends host its listening port, which 
+      the host will disseminate to future clients joining the same mesh 
+    - finally, the host responds with a list of 
+      (listening) ports/addresses with one entry 
+      for each non-host peer in the mesh 
+    - the newly joined mesh client will then connect
+      to the other peers in the mesh 
+      (see P2P_MESH_CONNECT case of handle_p2p_message below)
     """
 
     # override constructor to add connection to host
-    def __init__(self, username, host_addr, host_port, p2p_port):
+    def __init__(self, username, host_addr, host_port, listen_p2p_port):
         # initialize username, self.meetingID, self.peers, 
-        # self.p2p_port, and self.connection_thread
+        # self.listen_p2p_port, and self.connection_thread
         #
         # meetingID doesn't matter for MeshAudienceNode, so just supply -1
-        super().__init__(username, -1, p2p_port)
+        super().__init__(username, -1, listen_p2p_port)
 
         self.host_addr = host_addr
         self.host_port = host_port
@@ -317,8 +345,9 @@ class MeshAudienceNode(HostNode):
 
         # tell the host our preferred username 
         send_socket_message(self.host_socket, RegisterUsername(username))
-        # tell the host our p2p socket
-        send_socket_message(self.host_socket, RegisterPort(p2p_port))
+        # tell the host our p2p socket (for other peers to establish 
+        # new connections). this calls host to call HostNode.set_p2p_port
+        send_socket_message(self.host_socket, RegisterPort(listen_p2p_port))
         # send a welcome message for the host user to see we have connected
         send_socket_message(self.host_socket, P2PText(self.welcome_message()))
 
@@ -364,8 +393,8 @@ class MeshAudienceNode(HostNode):
         in the provided list 
         """
         
-        for addr_port in peer_addr_ports:
-            conn_socket = connect_to_peer(addr_port)
+        for listen_p2p_port in peer_addr_ports:
+            conn_socket = connect_to_peer(listen_p2p_port)
             
             # add new peer object to self.peers and create a new
             # thread to listen for messages from this peer
@@ -373,7 +402,9 @@ class MeshAudienceNode(HostNode):
             # Now there is a two-way connection from this user
             # to the peer at addr_port
             if conn_socket:
-                self.add_new_peer(conn_socket, addr_port)
+                # non-host node is connecting to other nodes
+                # in network, 
+                self.add_new_peer(conn_socket, listen_p2p_port)
 
                 # also broadcast username to these peers
                 send_socket_message(conn_socket, RegisterUsername(self.username))
@@ -409,7 +440,7 @@ class MeshHostNode(HostNode):
         a list of peer ips. 
         """
         accept_socket = socket(AF_INET, SOCK_STREAM)
-        accept_socket.bind(('', self.p2p_port))
+        accept_socket.bind(('', self.listen_p2p_port))
         accept_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # FOR DEBUGGING
         accept_socket.listen()
 
@@ -427,10 +458,13 @@ class MeshHostNode(HostNode):
             other_peer_addr_ports = []
             for addr_prt in self.peers:
                 peer_obj = self.peers[addr_prt] 
-                if peer_obj.p2p_port: # peer must have registered p2p port with host 
-                    other_peer_addr_ports.append((addr_prt[0], peer_obj.p2p_port))
+                if peer_obj.listen_p2p_port: # peer must have registered p2p port with host 
+                    other_peer_addr_ports.append((addr_prt[0], peer_obj.listen_p2p_port))
 
-
+            # mesh host adds new peer to its network. here addr_port 
+            # is the address/port for the tcp connection from the 
+            # host to this new node. this will get updated 
+            # in self.peers 
             self.add_new_peer(connection_socket, addr_port)
             send_socket_message(connection_socket, MeshConnect(other_peer_addr_ports))
     
@@ -461,8 +495,8 @@ class MeshHostNode(HostNode):
         elif message_obj.type == P2P_REGISTER_PORT:
             # register p2p port for this peer
             # so future peers can connect to it
-            
-            self.set_p2p_port(addr_port, message_obj.data.p2p_port)
+            # (by connecting the this p2p listening port) 
+            self.set_p2p_port(addr_port, message_obj.data.listen_p2p_port)
 
         else:
             logging.error("Unknown message type: %s", str(message_obj.type))

@@ -1,4 +1,5 @@
 import traceback
+import logging
 import threading
 from p2p_meetings.constants import * 
 from p2p_meetings.server_messages import * 
@@ -39,8 +40,7 @@ def connect_to_peer(addr_port):
         return conn_socket
     except Exception as e:
         safe_shutdown_close(conn_socket)
-        print("Connection with meeting host failed: ", addr_port, e)
-        traceback.print_stack()
+        logging.error("Connection with meeting host failed: %s %s", str(addr_port), str(e))
         return None
     
 
@@ -48,7 +48,7 @@ def safe_send(conn_socket, msg_bytes):
     try:
         conn_socket.send(msg_bytes)
     except Exception as e:
-        print("Error occured while sending message over socket: ", e)
+        logging.error("Error occured while sending message over socket: %s", str(e))
 
 
 def send_socket_message(conn_socket, msg_object):
@@ -62,8 +62,7 @@ def send_socket_message(conn_socket, msg_object):
         safe_send(conn_socket, msg_object.encode())
         return
 
-    print("Error: Second argument is not instance of SocketMessage: ", msg_object)
-    traceback.print_stack()
+    logging.error("Error: Second argument is not instance of SocketMessage: %s", str(msg_object))
 
 
 
@@ -140,7 +139,7 @@ class ListenThread:
             try:
                 message_bytes = self.conn_socket.recv(1024)
             except Exception as e:
-                print("Exception raised while listening to socket:", e)
+                logging.error("Exception raised while listening to socket: %s", str(e))
                 self.on_close()
                 return
 
@@ -150,7 +149,7 @@ class ListenThread:
 
             if not message_bytes:
                 # perform cleanup function 
-                # print("ListenThread socket closed (empty bytes) from recv()") 
+                logging.debug("ListenThread socket closed (empty bytes) from recv()") 
                 self.on_close()
                 return
             
@@ -181,17 +180,17 @@ class ListenThread:
                 
                 # use MessageType constructor and check if 
                 # it is a valid instance
+                logging.debug("Reading message with class %s", str(self.MessageType))
                 message_obj = self.MessageType(message_dict)
 
                 if not message_obj.is_valid():
-                    print("Invalid message object: ", message_obj)
+                    logging.error("Invalid message object: %s", str(message_obj))
                 else:
                     # process the message
                     try:
                         self.handle_message(message_obj)
                     except Exception as e:
-                        print("Failed to process message: ", e)
-                        traceback.print_exc()
+                        logging.error("Failed to process message: %s", str(e))
         
         # if while loop exited, still perform cleanup function
         # and close socket

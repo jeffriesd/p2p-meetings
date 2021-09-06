@@ -3,6 +3,7 @@ from p2p_meetings.server_messages import *
 from p2p_meetings.constants import * 
 import threading
 import json
+import logging
 from p2p_meetings.p2p_nodes import *
 
 ######################################################
@@ -46,10 +47,10 @@ class Client:
             # try connecting to central server 
             self.client_socket.connect((SERVER_IP, SERVER_PORT))
         except Exception as e:
-            print("Failed to connect with central server:", e, SERVER_IP, SERVER_PORT)
+            logging.info("Failed to connect with central server: %s %s %s", str(e), str(SERVER_IP), str(SERVER_PORT))
             return
 
-        print("Connected successfully with central server.")
+        logging.info("Connected successfully with central server.")
 
         # listen for messages from server 
         # in a separate thread
@@ -57,7 +58,7 @@ class Client:
             ListenThread(ServerResponse, \
                             self.client_socket,  \
                             self.handle_response, \
-                            lambda: print("Disconnected from central server."))
+                            lambda: logging.info("Disconnected from central server."))
 
         self.server_response_thread.start()
 
@@ -96,7 +97,7 @@ class Client:
                     self.node = MeshAudienceNode(username, host_addr, host_port, p2p_port)
 
             else:
-                print("Join request failed: ", response_obj.message)
+                logging.info("Join request failed: %s", str(response_obj.message))
 
 
         # Create a new meeting. The underlying network initially 
@@ -115,11 +116,11 @@ class Client:
                     self.node = MeshHostNode(HOST_USERNAME, response_obj.data.meetingID, meeting_port)
 
             else:
-                print("Create request failed: ", response_obj.message)
+                logging.info("Create request failed: %s", str(response_obj.message))
 
         if response_obj.type == LIST:
             if response_obj.success:
-                print("Available meetings (ID/type) : ", response_obj.data)
+                logging.info("Available meetings (ID/type): %s", str(response_obj.data))
             else:
-                print("List request failed: ", response_obj.message)
+                logging.info("List request failed: %s", str(response_obj.message))
 

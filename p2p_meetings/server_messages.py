@@ -1,6 +1,7 @@
 import json
 from socket import * 
 from p2p_meetings.constants import * 
+import logging 
 
 ##########################################################
 ##  wrap up request data in a class for abstraction     ##
@@ -46,15 +47,15 @@ class SocketMessage:
             if key in msg_fields:
                 attr = msg_dict[key]
                 if type(attr) is dict:
-                    # recursively lift keys of dictionary to be attributes of 
+                    # recursively convert keys of dictionary to be attributes of 
                     # the object itself 
-                    attr = SocketMessage(attr, DATA_FIELDS)
+                    attr = SocketMessage(attr, DATA_FIELDS + msg_fields)
 
                 # assign dictionary key/value to 
                 # be attribute of this SocketMessage object
                 setattr(self, key, attr)
             else:
-                print("Unexpected field for SocketMessage: ", key)
+                logging.error("Unexpected field for SocketMessage: %s", str(key))
 
     def _get_dict(self):
         """

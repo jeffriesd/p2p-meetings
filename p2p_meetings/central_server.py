@@ -6,6 +6,7 @@ from p2p_meetings.server_messages import *
 from p2p_meetings.constants import * 
 from p2p_meetings.socket_util import * 
 
+import logging 
 
 class MeetingEntry:
     """
@@ -16,8 +17,8 @@ class MeetingEntry:
     meeting, no future peer can use this username in the same meeting,
     even if the original peer with that username leaves. 
     """
-    def __init__(self, conn_socket, addr_port):
-        self.conn_socket = conn_socket
+    def __init__(self, client_socket, addr_port):
+        self.client_socket = client_socket
 
         self.host_addr_port = addr_port
         self.host_addr, self.host_port = addr_port 
@@ -44,13 +45,13 @@ class MeetingEntry:
 # creating a response, so these classes
 # just provide a tag for which kind of meeting is being recorded. 
 class StarMeetingEntry(MeetingEntry):
-    def __init__(self, conn_socket, addr_port):
-        super().__init__(conn_socket, addr_port)
+    def __init__(self, client_socket, addr_port):
+        super().__init__(client_socket, addr_port)
         self.meetingType = STAR
 
 class MeshMeetingEntry(MeetingEntry):
-    def __init__(self, conn_socket, addr_port):
-        super().__init__(conn_socket, addr_port)
+    def __init__(self, client_socket, addr_port):
+        super().__init__(client_socket, addr_port)
         self.meetingType = MESH
 
 
@@ -104,9 +105,8 @@ class Server:
             # shutdown and close socket
             safe_shutdown_close(self.connection_socket)
 
-        # print("socks to close =", self.client_sockets)
         for sock in self.client_sockets:
-            print("server: close sock", sock.getsockname(), sock.getpeername())
+            logging.info("server: close sock %s", sock.getpeername())
             safe_shutdown_close(sock)
 
     def new_meetingID(self):
@@ -152,7 +152,9 @@ class Server:
         while self.keep_accepting_connections:
             try: # socket may be closed after loop is entered 
                 client_socket, addr_port = self.connection_socket.accept()
-                print_to_server_log("Central server: got a new connection from ", addr_port)
+
+                info_str = "Central server: got a new connection from %s" % str(addr_port)
+                logging.info(info_str)
 
                 self.client_sockets.append(client_socket)
 
@@ -160,8 +162,8 @@ class Server:
                 # so other clients can connect simultaneously
                 request_thread = self.make_request_thread(client_socket, addr_port)
                 request_thread.start()
-            except:
-                pass
+            except Exception as e:
+                logging.error(str(e))
 
     def make_request_thread(self, client_socket, addr_port):
         """
@@ -172,28 +174,30 @@ class Server:
         since client_socket and addr_port get reassigned every
         iteration of the while loop. 
         """
-        sock_name = client_socket.getsockname()
+        peer_name = client_socket.getpeername()
         return ListenThread(MeetingRequest,   \
                              client_socket, \
                              lambda req: self.handle_request(req, client_socket, addr_port), \
-                             lambda: print_to_server_log(f"Client {sock_name} closed connection."))
+                             lambda: logging.info(f"Client {peer_name} closed connection."))
 
-    def send_response(self, response_obj, conn_socket):
+    def send_response(self, response_obj, client_socket):
         """ 
         response_obj - ServerResponse object
         """
         if response_obj.is_valid():
-            safe_send(conn_socket, response_obj.encode())
+            logging.debug("Sending to client %s: %s", str(client_socket.getpeername()), str(response_obj))
+            safe_send(client_socket, response_obj.encode())
         else:
-            print_to_server_log("Error: Cannot send invalid ServerResponse object: ", response_obj)
+            logging.error("Error: Cannot send invalid ServerResponse object: %s", 
+                    str(response_obj))
 
     def delete_meeting_entry(self, meetingID):
         """
         Delete a MeetingEntry object in self.meetings
         """
         if meetingID in self.meetings:
-            # self.meetings[meetingID].conn_socket.close()
-            safe_shutdown_close(self.meetings[meetingID].conn_socket)
+            # self.meetings[meetingID].client_socket.close()
+            safe_shutdown_close(self.meetings[meetingID].client_socket)
             del self.meetings[meetingID]
 
     def get_listing(self):
@@ -210,10 +214,10 @@ class Server:
             try:
                 # sending one messages usually fails to raise exception 
                 # immediately, so send two
-                meeting_entry.conn_socket.send(TEST_MESSAGE.encode())
+                meeting_entry.client_socket.send(TEST_MESSAGE.encode())
                 # wait for a few milliseconds 
                 time.sleep(0.1)
-                meeting_entry.conn_socket.send(TEST_MESSAGE.encode())
+                meeting_entry.client_socket.send(TEST_MESSAGE.encode())
             except:
                 to_delete.append(meetingID)
                 continue
@@ -226,14 +230,17 @@ class Server:
 
         return meeting_list
 
-    def handle_request(self, mtng_request, conn_socket, addr_port):
+    def handle_request(self, mtng_request, client_socket, addr_port):
         """ 
         mtng_request - MeetingRequest object
 
         addr_port - ip address and port for socket connection from client to server... 
         """
+        logging.debug("HANDLE REQUEST: %s", str(mtng_request))
 
         # TODO use is_valid() and send error response if invalid 
+
+        response = None
 
         if mtng_request.type == LIST:
             # create new response with list of meeting ids
@@ -281,12 +288,16 @@ class Server:
             # this meeting in the future 
             if mtng_request.data.meetingType == STAR:
                 response = CreateStarSuccess(meetingID, p2p_port)
-                self.meetings[meetingID] = StarMeetingEntry(conn_socket, (addr_port[0], p2p_port))
+                self.meetings[meetingID] = StarMeetingEntry(client_socket, (addr_port[0], p2p_port))
 
             if mtng_request.data.meetingType == MESH:
                 response = CreateMeshSuccess(meetingID, p2p_port)
-                self.meetings[meetingID] = MeshMeetingEntry(conn_socket, (addr_port[0], p2p_port))
+                self.meetings[meetingID] = MeshMeetingEntry(client_socket, (addr_port[0], p2p_port))
 
-        # send response to requesting client 
-        self.send_response(response, conn_socket)
+        if response:
+            # send response to requesting client 
+            self.send_response(response, client_socket)
+            return
+
+        # ERROR case? no need to respond, but maybe log something on server 
 

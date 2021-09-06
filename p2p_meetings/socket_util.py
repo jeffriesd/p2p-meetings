@@ -1,9 +1,9 @@
 import traceback
 import logging
 import threading
+from typing import Callable
 from p2p_meetings.constants import * 
 from p2p_meetings.message_types import * 
-
 
 def safe_shutdown_close(socket):
     """
@@ -169,30 +169,21 @@ class ListenThread:
                 if not message_str:  # ignore empty string
                     continue
 
-                # we only want to handle message
-                # that can be parsed as dictionaries (JSON)
-                message_dict = {}
-                try:
-                    message_dict = json.loads(message_str)
-                except:
-                    # couldn't parse as dictionary, ignore it
-                    continue
-                
-                # use MessageType constructor and check if 
+                # decode message using MessageType constructor and check if 
                 # it is a valid instance
-                logging.debug("Reading message with class %s", str(self.MessageType))
-                message_obj = self.MessageType(message_dict)
+                logging.debug("Decoding message with class %s", str(self.MessageType))
+                message_obj = decode_message(message_str, self.MessageType)
 
-                if not message_obj.is_valid():
-                    logging.error("Invalid message object: %s", str(message_obj))
+                if message_obj is None or not message_obj.is_valid():
+                    logging.debug("Invalid message object: %s", str(message_obj))
                 else:
                     # process the message
                     try:
                         self.handle_message(message_obj)
                     except Exception as e:
-                        logging.error("Failed to process message: %s", str(e))
+                        logging.debug("Failed to process message: %s", str(e))
         
-        # if while loop exited, still perform cleanup function
+        # if while loop exited, perform cleanup function
         # and close socket
         safe_shutdown_close(self.conn_socket)
 

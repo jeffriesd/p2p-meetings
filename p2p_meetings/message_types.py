@@ -2,12 +2,29 @@ import json
 from socket import * 
 from p2p_meetings.constants import * 
 import logging 
+from typing import Callable 
 
 ##########################################################
 ##  wrap up request data in a class for abstraction     ##
 ##  purposes, but make it easy to convert a dictionary  ##
 ##  into SocketMessage object and vice versa.           ##
 ##########################################################
+
+def decode_message(message_str:bytes, MessageType:Callable[[dict], "SocketMessage"]):
+    """
+    Decode some json (in the form of a bytestring)
+    and return an object of type MessageType.
+    Return None on failure. 
+    """
+    message_dict = {}
+    try:
+        message_dict = json.loads(message_str)
+    except Exception as e: 
+        logging.debug("Decoding failed for: '%s'", message_str)
+        print("Decoding failed for: '%s'" % message_str)
+        return None
+
+    return MessageType(message_dict)
 
 
 REQUEST_FIELDS = [ "type", "data", "message" ]

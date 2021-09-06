@@ -1,24 +1,11 @@
 from unittest import TestCase
 import json 
 from threading import Thread
-from time import sleep 
-
-from typing import Callable
+from typing import Callable 
 
 from p2p_meetings.central_server import *
 from p2p_meetings.constants import *
-
-
-def sleep_until(
-    stop_condition: Callable[[], bool], 
-    limit:float=3.0, sleep_incr:float=0.1):
-    """Sleep until some condition is satisfied, 
-    but stop after a certain number of seconds"""
-
-    total_time = 0
-    while (not stop_condition()) and total_time < limit:
-        sleep(sleep_incr)
-        total_time += sleep_incr
+from test.test_util import sleep_until
 
 class LocalServerTest(TestCase):
     """
@@ -27,6 +14,9 @@ class LocalServerTest(TestCase):
     """
     @classmethod
     def setUpClass(cls):
+        # set up logging 
+        logging.basicConfig(filename="test-server.log", level=logging.DEBUG)
+
         cls.server = Server()
         cls.client_sockets = []
 
@@ -42,7 +32,7 @@ class LocalServerTest(TestCase):
         for sock in cls.client_sockets:
             safe_shutdown_close(sock)
 
-    def make_request_get_response(self, request_function:Callable[[], "MeetingRequest"]):
+    def make_request_get_response(self, request:"MeetingRequest"): 
         """Take a function that returns a MeetingRequest object, 
         send a request to the server and return the response as a dictionary"""
         # test that list request generates correct response 
@@ -50,7 +40,6 @@ class LocalServerTest(TestCase):
         # if connection fails, self.make_client returns None
         self.assertIsNotNone(client_socket)
 
-        request = request_function()
         client_socket.send(request.encode())
 
         # wait up to 3 seconds for message 
@@ -78,17 +67,17 @@ class LocalServerTest(TestCase):
 
     def test_server_accepts_connections(self): 
         """Test that server accepts client connections"""
-        # """Test whether sockets can connect to central server."""
-        client_socket = self.make_client()
-        # if connection fails, self.make_client returns None
-        self.assertIsNotNone(client_socket)
-
         # also check that self.server.client_sockets has one entry 
         # after connection client_socket.
         # This may take a short amount of time to update, 
         # so sleep until it does 
         prev_num_clients = len(self.server.client_sockets)
         condition = lambda: len(self.server.client_sockets) == prev_num_clients+1
+
+        client_socket = self.make_client()
+        # if connection fails, self.make_client returns None
+        self.assertIsNotNone(client_socket)
+
         sleep_until(condition)
 
         self.assertTrue(condition())
@@ -145,23 +134,19 @@ class LocalServerTest(TestCase):
 
     def test_send_response(self):
         """Test that send_response works when given valid response object"""
-        client_socket = self.make_client()
-        # if connection fails, self.make_client returns None
-        self.assertIsNotNone(client_socket)
         
         # just use a list response with empty list of 
         # ids to test send_response 
         response = ListResponse([]) # does not cause "unexpected field issue" 
 
-        # this is wrong:
-        ### self.server.send_response(response, client_socket)
-        # when client connects, server 
-        # gets its own socket object representing the client_socket
-        # and we need to use THAT to send instead of the client-side socket 
-
         # sleep until server-side client socket is available 
         prev_num_clients = len(self.server.client_sockets)
         condition = lambda: len(self.server.client_sockets) == prev_num_clients+1
+
+        client_socket = self.make_client()
+        # if connection fails, self.make_client returns None
+        self.assertIsNotNone(client_socket)
+
         sleep_until(condition)
         ss_client_socket = self.server.client_sockets[-1]
 
@@ -171,26 +156,24 @@ class LocalServerTest(TestCase):
     def test_handle_request_create_star(self):
         """Test that sending a CREATE (star topology) request 
         actually creates a new meeting entry on server side"""
-        self._test_handle_request_create(CreateStarRequest)
+        self._test_handle_request_create(CreateStarRequest())
 
     def test_handle_request_create_mesh(self):
         """Test that sending a CREATE (mesh topology) request 
         actually creates a new meeting entry on server side"""
-        self._test_handle_request_create(CreateMeshRequest)
+        self._test_handle_request_create(CreateMeshRequest())
 
-    def _test_handle_request_create(self, request_function:Callable[[], "MeetingRequest"]):
+    def _test_handle_request_create(self, request: "MeetingRequest"):
         """helper method for testing CREATE requests"""
         client_socket = self.make_client()
         # if connection fails, self.make_client returns None
         self.assertIsNotNone(client_socket)
 
-        request = request_function()
-
-        client_socket.send(request.encode())
-
         # test that server adds one new meeting entry
         prev_num_meetings = len(self.server.meetings)
         condition = lambda: len(self.server.meetings) == prev_num_meetings + 1
+
+        client_socket.send(request.encode())
 
         sleep_until(condition) 
         self.assertTrue(condition())
@@ -212,7 +195,7 @@ class LocalServerTest(TestCase):
 
     def test_handle_request_list(self):
         """Test that list request generates correct response"""
-        response_dict = self.make_request_get_response(ListRequest)
+        response_dict = self.make_request_get_response(ListRequest())
 
         self.assertTrue(response_dict["success"])
         self.assertEqual(response_dict["type"], LIST)
@@ -222,13 +205,12 @@ class LocalServerTest(TestCase):
         """Test that join request generates correct response"""
 
         # first make a create request to make a new room to join 
-        room_id = self._test_handle_request_create(CreateStarRequest)
+        room_id = self._test_handle_request_create(CreateStarRequest())
 
         # parameterize JoinRequest with a dummy username 
         # and a meetingID 
-        make_join = lambda: JoinRequest(room_id, "test_username")
-
-        response_dict = self.make_request_get_response(make_join)
+        request = JoinRequest(room_id, "test_username")
+        response_dict = self.make_request_get_response(request)
 
         self.assertEqual(response_dict["type"], JOIN)
         self.assertTrue(isinstance(response_dict["data"], dict))

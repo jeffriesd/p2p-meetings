@@ -22,7 +22,7 @@ MEETING_TYPES = [STAR, MESH]
 # valid fields of application messages 
 DATA_FIELDS = [
     "meetingType", "meetingID", 
-    "hosts", "username", "host", "p2p_port"
+    "hosts", "username", "host", "listen_p2p_port"
 ]
 
 class SocketMessage:
@@ -87,9 +87,11 @@ class SocketMessage:
     def is_valid(self):
         """
         Default method performs no error-checking
-        on the contents of a message. 
+        on the contents of a message and 
+        returns False. Subclasses 
+        must define their own is_valid method 
         """
-        return True 
+        return False
 
 
 class MeetingRequest(SocketMessage): 
@@ -137,27 +139,26 @@ class MeetingRequest(SocketMessage):
 
 class ListRequest(MeetingRequest):
     def __init__(self):
-        super().__init__()
-        self.type = LIST
-
+        super().__init__({ "type": LIST })
 
 class JoinRequest(MeetingRequest):
     def __init__(self, meeting_id, username):
-        super().__init__()
-        self.type = JOIN
-        self.data = { "meetingID" : meeting_id , "username" : username}
+        req_data = { "meetingID" : meeting_id , "username" : username}
+        req_type = JOIN
+        req_dict = {"data": req_data, "type": req_type }
+        super().__init__(req_dict)
 
 class CreateMeshRequest(MeetingRequest):
     def __init__(self):
-        super().__init__()
-        self.type = CREATE
-        self.data = { "meetingType" : MESH } 
+        data = { "meetingType" : MESH } 
+        req_dict = {"type": CREATE, "data": data}
+        super().__init__(req_dict)
 
 class CreateStarRequest(MeetingRequest):
     def __init__(self):
-        super().__init__()
-        self.type = CREATE
-        self.data = { "meetingType" : STAR } 
+        data = { "meetingType" : STAR } 
+        req_dict = {"type": CREATE, "data": data}
+        super().__init__(req_dict)
 
 
 ##########################################################
@@ -204,8 +205,8 @@ class ServerResponse(SocketMessage):
         if self.type == LIST:
             # List response should always
             # return a list
-            # return type(self.data) is list
-            return True
+            return type(self.data) is list
+            # return True
 
         if self.type == JOIN:
             # if self.success:
@@ -223,54 +224,64 @@ class ServerResponse(SocketMessage):
 
 class ListResponse(ServerResponse):
     def __init__(self, meeting_id_list):
-        super().__init__()
-        self.message = "\nMeetings found: %s\n" % len(meeting_id_list)
-        self.type = LIST
-        self.success = True
-        self.data = meeting_id_list
+        message = "\nMeetings found: %s\n" % len(meeting_id_list)
+        resp_dict = {"message": message, 
+                    "type": LIST,
+                    "success": True,
+                    "data": meeting_id_list }
+        super().__init__(resp_dict) 
 
 class JoinStarSuccess(ServerResponse):
     def __init__(self, host_addr_port, username):
         super().__init__()
-        self.message = "Join request successful! Preparing to join..."
-        self.data = { "host" : host_addr_port, "meetingType": STAR , "username" : username}
-        self.type = JOIN
-        self.success = True 
+        message = "Join request successful! Preparing to join..."
+        data = { "host" : host_addr_port, "meetingType": STAR , "username" : username}
+        resp_dict = {"message": message, 
+                    "type": JOIN,
+                    "success": True,
+                    "data": data }
+        super().__init__(resp_dict) 
 
 class JoinMeshSuccess(ServerResponse):
-    def __init__(self, host_addr_port, username, p2p_port):
-        super().__init__()
-        self.message = "Join request successful! Preparing to join..."
-        self.data = { "host" : host_addr_port , "meetingType": MESH , "username" : username, "p2p_port" : p2p_port}
-        self.type = JOIN
-        self.success = True 
+    def __init__(self, host_addr_port, username, listen_p2p_port):
+        message = "Join request successful! Preparing to join..."
+        data = { "host" : host_addr_port , "meetingType": MESH , "username" : username, "listen_p2p_port" : listen_p2p_port}
+        resp_dict = {"message": message, 
+                    "type": JOIN,
+                    "success": True,
+                    "data": data }
+        super().__init__(resp_dict) 
 
 
 class JoinFailure(ServerResponse):
     def __init__(self, error_msg):
-        super().__init__()
-        self.message = "Join failed with error: '%s'" % error_msg
-        self.type = JOIN
-        self.success = False
-        self.data = None
+        message = "Join failed with error: '%s'" % error_msg
+        resp_dict = {"message": message, 
+                    "type": JOIN,
+                    "success": False,
+                    "data": None }
+        super().__init__(resp_dict) 
 
 class CreateStarSuccess(ServerResponse):
-    def __init__(self, meetingID, p2p_port):
-        super().__init__()
-        self.message = "Create request successful! Creating new meeting..."
-        self.data = { "meetingID" : meetingID , "meetingType" : STAR , "p2p_port" : p2p_port} 
-        self.type = CREATE
-        self.success = True 
+    def __init__(self, meetingID, listen_p2p_port):
+        message = "Create request successful! Creating new meeting..."
+        data = { "meetingID" : meetingID , "meetingType" : STAR , 
+                 "listen_p2p_port" : listen_p2p_port} 
+        resp_dict = {"message": message, 
+                    "type": CREATE,
+                    "success": True,
+                    "data": data }
+        super().__init__(resp_dict) 
 
 class CreateMeshSuccess(ServerResponse):
-    def __init__(self, meetingID, p2p_port):
-        super().__init__()
-        self.message = "Create request successful! Creating new meeting..."
-        self.data = { "meetingID" : meetingID , "meetingType" : MESH , "p2p_port" : p2p_port } 
-        self.type = CREATE
-        self.success = True 
-
-
+    def __init__(self, meetingID, listen_p2p_port):
+        message = "Create request successful! Creating new meeting..."
+        data = { "meetingID" : meetingID , "meetingType" : MESH , "listen_p2p_port" : listen_p2p_port } 
+        resp_dict = {"message": message, 
+                    "type": CREATE,
+                    "success": True,
+                    "data": data }
+        super().__init__(resp_dict) 
 
 
 #######################################################
@@ -304,9 +315,8 @@ class P2PText(P2PMessage):
     Regular (non-control) text message between two p2p nodes. 
     """
     def __init__(self, message_str):
-        super().__init__()
-        self.message = message_str
-        self.type = P2P_TEXT
+        msg_dict = {"message": message_str, "type": P2P_TEXT}
+        super().__init__(msg_dict)
 
     def is_valid(self):
         """
@@ -324,11 +334,12 @@ class RegisterUsername(P2PMessage):
     of the StarAudienceNode. 
     """
     def __init__(self, username):
-        super().__init__()
-
-        self.type = P2P_REGISTER_USERNAME
         # pass username using data field
-        self.data = { "username" : username }
+        data = { "username" : username }
+
+        msg_dict = {"type": P2P_REGISTER_USERNAME,
+                    "data": data}
+        super().__init__(msg_dict)
 
     def is_valid(self):
         return super().is_valid() \
@@ -341,16 +352,16 @@ class RegisterPort(P2PMessage):
     (The port via which other peers will 
     connect to this peer in the full-mesh network.)
     """
-    def __init__(self, meeting_port):
-        super().__init__()
-
-        self.type = P2P_REGISTER_PORT
+    def __init__(self, listen_p2p_port):
         # pass username using data field
-        self.data = { "p2p_port" : meeting_port }
+        data = { "listen_p2p_port" : listen_p2p_port }
+        msg_dict = {"type": P2P_REGISTER_PORT,
+                    "data": data}
+        super().__init__(msg_dict)
 
     def is_valid(self):
         return super().is_valid() \
-                and (type(self.data.meeting_port) is int)
+                and (type(self.data.listen_p2p_port) is int)
 
 class MeshConnect(P2PMessage):
     """
@@ -364,9 +375,11 @@ class MeshConnect(P2PMessage):
     """
         
     def __init__(self, addr_ports):
-        super().__init__()
-        self.type = P2P_MESH_CONNECT
-        self.data = { "hosts" : addr_ports }
+        data = { "hosts" : addr_ports }
+        msg_dict = {"type": P2P_MESH_CONNECT,
+                    "data": data}
+        super().__init__(msg_dict)
+
 
     def is_valid(self):
         return super().is_valid() \

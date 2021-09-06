@@ -1,8 +1,6 @@
 from socket import *
 from p2p_meetings.message_types import * 
 from p2p_meetings.constants import * 
-import threading
-import json
 import logging
 from p2p_meetings.p2p_nodes import *
 

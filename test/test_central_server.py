@@ -77,6 +77,7 @@ class LocalServerTest(TestCase):
         return client_socket
 
     def test_server_accepts_connections(self): 
+        """Test that server accepts client connections"""
         # """Test whether sockets can connect to central server."""
         client_socket = self.make_client()
         # if connection fails, self.make_client returns None
@@ -94,6 +95,7 @@ class LocalServerTest(TestCase):
 
 
     def test_server_accepts_data(self):
+        """Test that server accepts client data"""
         # after connecting, 
         # try sending something to the server socket. 
         client_socket = self.make_client()
@@ -130,17 +132,19 @@ class LocalServerTest(TestCase):
         return all_ids
 
     def test_new_meetingID(self):
+        """Test new meeting IDs are unique"""
         ids = self.generate_unique_values(self.server.new_meetingID)
         # test that generated ids are all distinct 
         self.assertEqual(len(ids), len(set(ids)))
         
     def test_new_meeting_port(self):
+        """Test new meeting ports are unique"""
         ports = self.generate_unique_values(self.server.new_meeting_port)
         # test that generated ports are all distinct 
         self.assertEqual(len(ports), len(set(ports)))
 
     def test_send_response(self):
-        # test that send_response works when given valid response object
+        """Test that send_response works when given valid response object"""
         client_socket = self.make_client()
         # if connection fails, self.make_client returns None
         self.assertIsNotNone(client_socket)
@@ -207,7 +211,7 @@ class LocalServerTest(TestCase):
         return most_recent_id
 
     def test_handle_request_list(self):
-        # test that list request generates correct response 
+        """Test that list request generates correct response"""
         response_dict = self.make_request_get_response(ListRequest)
 
         self.assertTrue(response_dict["success"])
@@ -215,7 +219,7 @@ class LocalServerTest(TestCase):
         self.assertTrue(isinstance(response_dict["data"], list))
 
     def test_handle_request_join(self):
-        # test that join request generates correct response 
+        """Test that join request generates correct response"""
 
         # first make a create request to make a new room to join 
         room_id = self._test_handle_request_create(CreateStarRequest)
@@ -229,17 +233,4 @@ class LocalServerTest(TestCase):
         self.assertEqual(response_dict["type"], JOIN)
         self.assertTrue(isinstance(response_dict["data"], dict))
         self.assertTrue(response_dict["success"])
-
-    # def test_handle_request_list_side_effect(self):
-    #     # only side effect on server of ListRequest
-    #     # is that any hosts that have disconnected 
-    #     # since list List request will be pruned from server meeting list 
-    #
-    #     # to test this side effect, create two clients, 
-    #     # request a new meeting from client 1, 
-    #     # disconnect client 1, 
-    #     # then get ask for a listing from a different client 
-    #     #
-    #     # the meeting for client 1 should be pruned after it is disconnected 
-    #     pass
 

@@ -15,7 +15,7 @@ SERVER_IP = "localhost"
 DEFAULT_USERNAME = "default_user"
 HOST_USERNAME = "HOST"
 
-SERVER_PORT = 40
+SERVER_PORT = 2000
 DEFAULT_P2P_PORT = 3100
 
 # list of disallowed words for star-shaped meetings
@@ -25,7 +25,7 @@ DEFAULT_P2P_PORT = 3100
 BAD_WORDS = ["xxx", "yyy", "zzz"]
 
 # maximum number of warnings for users in star-shaped meetings 
-MAX_WARNINGS     = 3
+MAX_WARNINGS = 3
 
 TEST_MESSAGE = "test"
 

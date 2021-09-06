@@ -127,8 +127,7 @@ class HostNode:
             addr_port = tuple(addr_port)
             
         if addr_port in self.peers:
-            print("Error: Already have peer connection with " , addr_port)
-            traceback.print_stack()
+            logging.error("Error: Already have peer connection with %s" , str(addr_port))
             return
 
         # start thread to listen for questions from this peer
@@ -153,13 +152,13 @@ class HostNode:
                     # cleanup to perform when client closes connection
                     lambda: self.remove_user(addr_port))
  
-    def unknown_peer_error(self, addr_port):
+    def unknown_peer_error(self, addr_port, msg):
         """ 
-        Formatted error message for when a peer
+        Log formatted error message for when a peer
         with a particular (addr,port) doesn't have 
         a corresponding entry in self.peers 
         """
-        return "Error: Unknown peer - %s" % (addr_port,)
+        logging.error("Error: Unknown peer - %s - %s", addr_port, msg)
 
     def set_p2p_port(self, addr_port, p2p_port):
         """
@@ -168,7 +167,7 @@ class HostNode:
         if addr_port in self.peers:
             self.peers[addr_port].p2p_port = p2p_port
         else:
-            print(self.unknown_peer_error(addr_port), "for set_p2p_port")
+            self.unknown_peer_error(addr_port, "for set_p2p_port")
 
     def set_username(self, addr_port, user_str):
         """ 
@@ -177,7 +176,7 @@ class HostNode:
         if addr_port in self.peers:
             self.peers[addr_port].username = user_str
         else:
-            print(self.unknown_peer_error(addr_port), "for set_username")
+            self.unknown_peer_error(addr_port, "for set_username")
     
     def get_username(self, addr_port):
         """
@@ -196,7 +195,7 @@ class HostNode:
         if addr_port in self.peers:
             self.peers[addr_port].user_warnings += 1
         else:
-            print(self.unknown_peer_error(addr_port), "for give_warning")
+            self.unknown_peer_error(addr_port, "for give_warning")
 
     def get_user_warnings(self, addr_port):
         """
@@ -205,7 +204,7 @@ class HostNode:
         if addr_port in self.peers:
             return self.peers[addr_port].user_warnings 
 
-        print(self.unknown_peer_error(addr_port), "for get_user_warnings")
+        self.unknown_peer_error(addr_port, "for get_user_warnings")
         return 0
 
     def remove_user(self, addr_port):
@@ -226,7 +225,7 @@ class HostNode:
             safe_shutdown_close(peer.conn_socket)
             del self.peers[addr_port]
         else:
-            print(self.unknown_peer_error(addr_port), "for remove_user")
+            self.unknown_peer_error(addr_port, "for remove_user")
 
     def remove_all_users(self):
         """
@@ -253,9 +252,9 @@ class HostNode:
             if p2p_msg.is_valid():
                 send_socket_message(self.peers[addr_port].conn_socket, p2p_msg)
             else:
-                print("Invalid argument to P2PText: ", msg_str)
+                logging.error("Invalid argument to P2PText: %s", str(msg_str))
         else:
-            print(self.unknown_peer_error(addr_port), "for direct_message")
+            self.unknown_peer_error(addr_port, "for direct_message")
 
     def direct_message_username(self, username, message_str):
         """
@@ -267,7 +266,7 @@ class HostNode:
                 break
         # python for-else (else body executes if break never happens)
         else:
-            print("Error: No peer with username '%s'" % username)
+            logging.error("Error: No peer with username '%s'", username)
 
 
     def broadcast_message(self, msg_str):
@@ -345,7 +344,7 @@ class MeshAudienceNode(HostNode):
             # regular text from StarAudienceNode to HostNode
             # self.handle_question(addr_port, message_obj.message)
             peer_username = self.get_username(addr_port)
-            print("%s says: %s" % (peer_username, message_obj.message))
+            logging.info("%s says: %s", str(peer_username), str(message_obj.message))
 
         elif message_obj.type == P2P_REGISTER_USERNAME:
             # update username of this peer
@@ -356,7 +355,7 @@ class MeshAudienceNode(HostNode):
             # so we can connect to the rest of the network
             self.connect_to_mesh(message_obj.data.hosts)
         else:
-            print("Unknown message type: ", message_obj.type)
+            logging.error("Unknown message type: %s", str(message_obj.type))
 
 
     def connect_to_mesh(self, peer_addr_ports):
@@ -450,7 +449,7 @@ class MeshHostNode(HostNode):
             # regular text from StarAudienceNode to HostNode
             # self.handle_question(addr_port, message_obj.message)
             peer_username = self.get_username(addr_port)
-            print("%s says: %s" % (peer_username, message_obj.message))
+            logging.info("%s says: %s", str(peer_username), str(message_obj.message))
 
         elif message_obj.type == P2P_REGISTER_USERNAME:
             # update username of this peer
@@ -466,7 +465,7 @@ class MeshHostNode(HostNode):
             self.set_p2p_port(addr_port, message_obj.data.p2p_port)
 
         else:
-            print("Unknown message type: ", message_obj.type)
+            logging.error("Unknown message type: %s", str(message_obj.type))
 
 
 #######################################################
@@ -515,10 +514,10 @@ class StarHostNode(HostNode):
             # star host shouldn't be receiving this, so ignore it
             pass
         else:
-            print("Unknown message type: ", message_obj.type)
+            logging.error("Unknown message type: %s", str(message_obj.type))
 
 
-    def handle_question(self, addr_port, question_str):
+    def handle_question(self, addr_port, question_str:str):
         """
         Listen for messages (questions) from meeting attendees
         and possibly broadcast them to the entire meeting. 
@@ -527,7 +526,7 @@ class StarHostNode(HostNode):
         in removal from the meeting. 
         """
 
-        print("New question from client %s: '%s'" % (self.get_username(addr_port), question_str))
+        logging.info("New question from client %s: '%s'", self.get_username(addr_port), question_str)
 
         if all([bw not in question_str for bw in BAD_WORDS]):
             # broadcast message to entire meeting
@@ -571,8 +570,8 @@ class StarAudienceNode:
         self.host_listen_thread = \
             ListenThread(P2PMessage, \
                         self.client_socket, \
-                        lambda pm: print("New message from host:", pm.message), \
-                        lambda: print("Connection with meeting host closed."))
+                        lambda pm: logging.info("New message from host: %s", pm.message), \
+                        lambda: logging.info("Connection with meeting host closed."))
 
         self.host_listen_thread.start()
     

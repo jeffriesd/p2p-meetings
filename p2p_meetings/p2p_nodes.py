@@ -1,8 +1,10 @@
 from socket import *
 import threading
+import logging
 from p2p_meetings.constants import * 
 from p2p_meetings.socket_util import * 
 from p2p_meetings.message_types import * 
+from collections import defaultdict
 
 # Author: Daniel Jeffries
 #
@@ -61,7 +63,7 @@ class PeerInfo:
 
         self.listen_p2p_port = listen_p2p_port
 
-class HostNode:
+class HostNode(object):
     """
     host nodes 
     listen for new tcp connection requests, and then 
@@ -85,25 +87,37 @@ class HostNode:
         # to this node 
         self.listen_p2p_port = listen_p2p_port
 
+        # save connection sockets so they can be closed later 
+        self.conn_sockets = [] 
+
         # wait for connections in a separate thread
+        self.keep_alive = True
         self.connection_thread = threading.Thread(target=self.wait_for_connections)
         self.connection_thread.start()
+
+        # save list of messages from each peer 
+        # for testing/debugging 
+        self.text_messages = defaultdict(list)
 
     def wait_for_connections(self):
         """
         Wait for incoming tcp connection requests, 
         then send some test data when they connect.
         """
-        accept_socket = socket(AF_INET, SOCK_STREAM)
-        # accept_socket.bind(('', P2P_PORT))
-        accept_socket.bind(('', self.listen_p2p_port))
-        accept_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # FOR DEBUGGING
-        accept_socket.listen()
+        self.accept_socket = make_socket()
+        self.accept_socket.bind(('', self.listen_p2p_port))
+        self.accept_socket.listen()
 
-        while True:
+        while self.keep_alive:
             # addr_port is address and port 
             # of newly connected peer 
-            connection_socket, addr_port = accept_socket.accept()
+            try:
+                connection_socket, addr_port = self.accept_socket.accept()
+            except timeout:
+                continue
+            except Exception as e:
+                logging.error("Error acceptin socket: %s", str(e))
+                continue
 
             # tell new peer our username
             send_socket_message(connection_socket, RegisterUsername(self.username))
@@ -112,6 +126,8 @@ class HostNode:
             send_socket_message(connection_socket, welcome_message)
 
             # host node adds new peer, no username established yet
+            # but use correct p2p port 
+            p2p_port = connection_socket.getpeername()
             self.add_new_peer(connection_socket, addr_port)
 
     def welcome_message(self):
@@ -224,20 +240,35 @@ class HostNode:
             # close socket connection
             ##  peer.conn_socket.close()
             safe_shutdown_close(peer.conn_socket)
-            del self.peers[addr_port]
+            # safely remove dict key 
+            self.peers.pop(addr_port, None)
         else:
             self.unknown_peer_error(addr_port, "for remove_user")
 
-    def remove_all_users(self):
+    def shutdown(self):
         """
-        Close all connections and kill 
-        thread that's listening for new tcp connections.
+        Close all connections and kill the 
+        thread (and the associated socket) listening for new tcp connections.
         Also clear all entries in self.connections dictionary.
         """
-        # stop thread
-        self.connection_thread.join()
+        # stop self.connection_thread
+        self.keep_alive = False
+        # self.connection_thread.join()
 
-        for addr_port in self.peers:
+        # shutdown accept socket 
+        safe_shutdown_close(self.accept_socket)
+
+        for sock in self.conn_sockets:
+            safe_shutdown_close(sock)
+
+        peer_infos = list(self.peers.values())
+        for peer in peer_infos:
+            # shutdown peer connections 
+            safe_shutdown_close(peer.conn_socket)
+
+        # delete peer entries 
+        addrs = list(self.peers.keys())
+        for addr_port in addrs:
             self.remove_user(addr_port)
 
         self.peers = {}
@@ -375,6 +406,9 @@ class MeshAudienceNode(HostNode):
             peer_username = self.get_username(addr_port)
             logging.info("%s says: %s", str(peer_username), str(message_obj.message))
 
+            # store message for debugging/testing 
+            self.text_messages[peer_username] += message_obj.message
+
         elif message_obj.type == P2P_REGISTER_USERNAME:
             # update username of this peer
             self.set_username(addr_port, message_obj.data.username)
@@ -392,9 +426,10 @@ class MeshAudienceNode(HostNode):
         Make a connection request to every peer 
         in the provided list 
         """
-        
         for listen_p2p_port in peer_addr_ports:
+            logging.debug("Connecting to %s from %s", listen_p2p_port, self.listen_p2p_port)
             conn_socket = connect_to_peer(listen_p2p_port)
+            self.conn_sockets.append(conn_socket)
             
             # add new peer object to self.peers and create a new
             # thread to listen for messages from this peer
@@ -402,8 +437,8 @@ class MeshAudienceNode(HostNode):
             # Now there is a two-way connection from this user
             # to the peer at addr_port
             if conn_socket:
-                # non-host node is connecting to other nodes
-                # in network, 
+                # non-host node is connecting to other nodes in network
+
                 self.add_new_peer(conn_socket, listen_p2p_port)
 
                 # also broadcast username to these peers
@@ -411,7 +446,6 @@ class MeshAudienceNode(HostNode):
 
                 # send connection message
                 send_socket_message(conn_socket, P2PText(self.welcome_message()))
-
 
 
 class MeshHostNode(HostNode):
@@ -439,13 +473,18 @@ class MeshHostNode(HostNode):
         MeshHostNode will send the new user 
         a list of peer ips. 
         """
-        accept_socket = socket(AF_INET, SOCK_STREAM)
-        accept_socket.bind(('', self.listen_p2p_port))
-        accept_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # FOR DEBUGGING
-        accept_socket.listen()
+        self.accept_socket = make_socket()
+        self.accept_socket.bind(('', self.listen_p2p_port))
+        self.accept_socket.listen()
 
-        while True:
-            connection_socket, addr_port = accept_socket.accept()
+        while self.keep_alive:
+            try:
+                connection_socket, addr_port = self.accept_socket.accept()
+            except timeout:
+                continue
+            except Exception as e:
+                logging.error("Exception accepting connections MeshHostNode: %s", str(e))
+                continue
 
             # tell new peer our username
             send_socket_message(connection_socket, RegisterUsername(HOST_USERNAME))
@@ -484,6 +523,9 @@ class MeshHostNode(HostNode):
             # self.handle_question(addr_port, message_obj.message)
             peer_username = self.get_username(addr_port)
             logging.info("%s says: %s", str(peer_username), str(message_obj.message))
+
+            # store message for debugging/testing 
+            self.text_messages[peer_username] += message_obj.message
 
         elif message_obj.type == P2P_REGISTER_USERNAME:
             # update username of this peer
@@ -592,18 +634,18 @@ class StarAudienceNode:
         self.host_port = host_port
 
         # create new tcp connection with hosting peer
-        self.client_socket = connect_to_peer((host_addr, host_port))
-        if self.client_socket is None: # connection failed
+        self.host_socket = connect_to_peer((host_addr, host_port))
+        if self.host_socket is None: # connection failed
             return
 
 
         # tell the host our preferred username 
-        send_socket_message(self.client_socket, RegisterUsername(username))
+        send_socket_message(self.host_socket, RegisterUsername(username))
 
         # listen for messages from host 
         self.host_listen_thread = \
             ListenThread(P2PMessage, \
-                        self.client_socket, \
+                        self.host_socket, \
                         lambda pm: logging.info("New message from host: %s", pm.message), \
                         lambda: logging.info("Connection with meeting host closed."))
 
@@ -615,6 +657,10 @@ class StarAudienceNode:
         potentially be broadcast to the entire meeting
         after review. 
         """
-        send_socket_message(self.client_socket, P2PText(msg_str))
+        send_socket_message(self.host_socket, P2PText(msg_str))
 
+    def shutdown(self):
+        """Safely shutdown sockets"""
+        self.host_listen_thread.stop()
+        safe_shutdown_close(self.host_socket)
 

@@ -7,13 +7,16 @@ from p2p_meetings.central_server import *
 from p2p_meetings.constants import *
 from test.test_util import sleep_until
 
-class LocalServerTest(TestCase):
+class P2PTestCase(TestCase):
     """
     Note: this test must be run with permission 
     to open sockets on server port 
     """
     @classmethod
     def setUpClass(cls):
+        """
+        Just set up server once for all tests. 
+        """
         # set up logging 
         logging.basicConfig(filename="test-server.log", level=logging.DEBUG)
 
@@ -31,6 +34,8 @@ class LocalServerTest(TestCase):
         # close any opened client sockets 
         for sock in cls.client_sockets:
             safe_shutdown_close(sock)
+
+class LocalServerTest(P2PTestCase):
 
     def make_request_get_response(self, request:"MeetingRequest"): 
         """Take a function that returns a MeetingRequest object, 
@@ -64,6 +69,10 @@ class LocalServerTest(TestCase):
         # in class tear down 
         LocalServerTest.client_sockets.append(client_socket)
         return client_socket
+
+
+
+
 
     def test_server_accepts_connections(self): 
         """Test that server accepts client connections"""

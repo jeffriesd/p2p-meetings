@@ -100,13 +100,19 @@ class Server:
         Also close all client sockets. 
         """
         self.keep_accepting_connections = False
+        # self.connection_thread.join()
 
         if self.connection_socket:
             # shutdown and close socket
             safe_shutdown_close(self.connection_socket)
 
         for sock in self.client_sockets:
-            logging.info("server: close sock %s", sock.getpeername())
+            peer_name= "closed"
+            try:
+                peer_name = sock.getpeername()
+            except:
+                pass
+            logging.info("server: close sock %s", peer_name)
             safe_shutdown_close(sock)
 
     def new_meetingID(self):
@@ -144,14 +150,19 @@ class Server:
         and then eventually disconnect. 
         """
 
-        self.connection_socket = socket(AF_INET, SOCK_STREAM)
-        self.connection_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) 
+        self.connection_socket = make_socket()
         self.connection_socket.bind(('', SERVER_PORT))
         self.connection_socket.listen()
 
         while self.keep_accepting_connections:
             try: # socket may be closed after loop is entered 
-                client_socket, addr_port = self.connection_socket.accept()
+                try:
+                    client_socket, addr_port = self.connection_socket.accept()
+                except timeout:
+                    continue
+                except Exception as e:
+                    logging.error("Error acceptin socket: %s", str(e))
+                    continue
 
                 info_str = "Central server: got a new connection from %s" % str(addr_port)
                 logging.info(info_str)
@@ -196,9 +207,9 @@ class Server:
         Delete a MeetingEntry object in self.meetings
         """
         if meetingID in self.meetings:
-            # self.meetings[meetingID].client_socket.close()
             safe_shutdown_close(self.meetings[meetingID].client_socket)
-            del self.meetings[meetingID]
+            # safely delete dict key 
+            self.meetings.pop(meetingID, None)
 
     def get_listing(self):
         """

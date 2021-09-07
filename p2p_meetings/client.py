@@ -21,6 +21,16 @@ class Client:
     def __init__(self):
         # connect to central server
         self.connect_with_server()
+
+        # this will be set when 
+        # the client joins a p2p network 
+        self.node = None
+
+        # save messages from server for 
+        # testing/debugging
+        self.server_messages = []
+
+        self.meeting_response_data = [] 
     
     def star_create(self):
         send_socket_message(self.client_socket, CreateStarRequest())
@@ -62,9 +72,9 @@ class Client:
 
     def disconnect_from_server(self):
         """
-        Close socket with server and stop listening thread.
+        Safely close socket with server and stop listening thread.
         """
-        self.client_socket.close()
+        safe_shutdown_close(self.client_socket)
 
         self.server_response_thread.stop()
 
@@ -95,8 +105,7 @@ class Client:
                     self.node = MeshAudienceNode(username, host_addr, host_port, listen_p2p_port)
 
             else:
-                logging.info("Join request failed: %s", str(response_obj.message))
-
+                self.log_server_message("Join request failed: %s", str(response_obj.message))
 
         # Create a new meeting. The underlying network initially 
         # contains just the host node. As other users 
@@ -118,7 +127,34 @@ class Client:
 
         if response_obj.type == LIST:
             if response_obj.success:
-                logging.info("Available meetings (ID/type): %s", str(response_obj.data))
+                self.log_server_message("Available meetings (ID/type): %s", response_obj.data)
+                # save listing data for testing 
+                self.meeting_response_data.append(response_obj.data)
             else:
                 logging.info("List request failed: %s", str(response_obj.message))
+
+    def log_server_message(self, fmt_str:str, *args):
+        """
+        Log a message and save it for testing and debugging. 
+        Accept arguments in the same form as logging.info, 
+        i.e., a formet string with 0 or more 
+        """
+        arg_tuple = tuple(map(str, args))
+        text = fmt_str % arg_tuple
+        logging.info(text)
+        self.server_messages.append(text)
+
+
+    def shutdown(self):
+        """ 
+        End connections and close sockets both with 
+        server and with peers. Also stop listening thread"""
+        self.disconnect_from_server()
+
+        self.server_response_thread.stop()
+
+        # close any p2p connections 
+        if self.node:
+            logging.debug("shutting down p2p node %s", self.node)
+            self.node.shutdown()
 

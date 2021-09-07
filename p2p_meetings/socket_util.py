@@ -5,6 +5,17 @@ from typing import Callable
 from p2p_meetings.constants import * 
 from p2p_meetings.message_types import * 
 
+
+def make_socket():
+    """
+    Make TCP socket with timeout 
+    """
+    sock = socket(AF_INET, SOCK_STREAM)
+    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # FOR DEBUGGING
+    # sock.settimeout(5)
+    return sock
+
+
 def safe_shutdown_close(socket):
     """
     Shutdown and close a socket. 
@@ -25,8 +36,7 @@ def connect_to_peer(addr_port):
     Try to connect to host at addr_port 
     and return socket object on success. 
     """
-    conn_socket = socket(AF_INET, SOCK_STREAM)
-    conn_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) # FOR DEBUGGING
+    conn_socket = make_socket()
 
     if type(addr_port) is list:
         addr_port = tuple(addr_port)

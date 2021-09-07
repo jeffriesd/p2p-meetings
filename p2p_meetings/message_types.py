@@ -21,7 +21,6 @@ def decode_message(message_str:bytes, MessageType:Callable[[dict], "SocketMessag
         message_dict = json.loads(message_str)
     except Exception as e: 
         logging.debug("Decoding failed for: '%s'", message_str)
-        print("Decoding failed for: '%s'" % message_str)
         return None
 
     return MessageType(message_dict)
